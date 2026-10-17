@@ -1,29 +1,20 @@
-# Release checklist
+# Device and build checks
 
 [English](release-checklist.md) | [简体中文](release-checklist.zh-CN.md)
 
-For developers verifying a distribution. Complete the [distribution materials](distribution/README.en.md) first.
+Use when verifying camera changes or preparing a distribution. Record the commit SHA, device, OS version and observed results; state any untested platforms.
 
-Version/build: · Tag/full SHA: · Maintainer/date:
+## Device checks
 
-- [ ] Required CI checks pass for the release commit; review discussions are resolved.
-- [ ] Version/build increased; release notes describe behavior changes and limitations.
-- [ ] Android and iOS device evidence records model, OS, reviewer and result.
-- [ ] Subject selection, movement, loss/reselection, low light, shaking and fast pans checked.
-- [ ] Main/direct shutter, front/rear camera, crop/orientation and gallery save checked.
-- [ ] Permission refusal/retry, storage failure and save retry checked.
-- [ ] Before-consent inactivity, withdrawal, background/resume and policy return checked.
-- [ ] Own operator/contact details filled in; local policy rendering and navigation checked.
-- [ ] Release signing belongs to the independent distributor; no debug signing or credentials in artifacts.
-- [ ] Build matches the accepted SHA; hashes, version and signing identity recorded.
-- [ ] MIT and third-party notices retained; new assets have redistribution permission.
-- [ ] Store/internal testing and required listing/privacy disclosures complete.
-- [ ] Authors/co-authors preserved; optional contributor listing has consent.
-- [ ] Immutable release tag, rollout owner and follow-up fix plan recorded.
+- [ ] No camera activity before privacy consent; permission refusal requires an explicit retry before another request.
+- [ ] Subject selection, movement, loss and reselection work; test low light, shaking and fast pans.
+- [ ] Front/rear cameras, cropping, orientation, guided capture and direct capture behave correctly.
+- [ ] Photos save to the gallery; storage or save failures retain the photo for retry.
+- [ ] Background/resume and return from policy pages work; consent withdrawal stops camera/analysis and clears the in-memory photo.
+- [ ] Help and policy pages render locally; external links open only on user action.
 
-## Before first public release
+## Before distribution, if needed
 
-- [ ] Inspect tracked files and Git history for secrets, private material and signing data.
-- [ ] Keep completed store/copyright filings and generated builds out of Git; blank templates may be shared.
-- [ ] Verify source/assets licensing and the developer README and paired English/Chinese guides.
-- [ ] Enable and test GitHub rulesets and required checks; see [governance](community-governance.md).
+- [ ] Required checks pass; artifacts match the verified commit and have the correct version/build.
+- [ ] Use your own signing; artifacts contain no credentials. Policy content and contact details match your version.
+- [ ] Retain MIT and third-party notices; new assets have redistribution permission.

@@ -35,7 +35,7 @@ For a selected subject, the one-second hold means the target center stays inside
 | Screen, overlays, guidance copy | `main.dart`, `ui/guides.dart` | `widget_test.dart` + rendered screenshot |
 | Photo styles, strength, preview and PNG rendering | `core/photo_filter.dart`, `ui/photo_filters.dart`, `services/coach.dart` | `photo_filter_test.dart` + rendered screenshot |
 | Consent / permissions | `services/privacy.dart`, `services/permissions.dart`, `ui/privacy_flow.dart` | `privacy_test.dart` |
-| Local policy rendering / navigation | `services/policy_*.dart`, `ui/policy_*.dart` | `policy_content_test.dart`, `contributors_test.dart` |
+| Local policy rendering / navigation | `services/policy_*.dart`, `ui/policy_*.dart` | `policy_content_test.dart`, `privacy_test.dart` |
 
 Source paths in the table are relative to `lib/`; tests are under `test/`. [AGENTS.md](../AGENTS.md) records the behavioral contracts that require regression coverage.
 
@@ -53,13 +53,13 @@ The same sheet also offers brightness, contrast, saturation and warmth. Their ne
 
 | Output | Source / generation |
 | --- | --- |
-| `assets/legal/`, `lib/services/policy_pages.g.dart` | `python3 tools/build_policy_pages.py` from policy text in that script plus `policies/config.json` and `policies/community.json` |
+| `assets/legal/`, `lib/services/policy_pages.g.dart` | `python3 tools/build_policy_pages.py` from policy text in that script and `policies/config.json` |
 | `assets/fonts/FrameSans-Regular.ttf` | `tools/update_ui_font.py` subsets a licensed full Noto Sans SC font using current Dart / policy text |
 | Build output, plugin registration, local SDK paths | Flutter / platform tooling; keep local artifacts out of Git |
 
 Operator, contact and consent revision are generated from `policies/config.json`. `policy_pages.g.dart` contains the HTML used by native and Web views. The app handles internal document links using the `frame-policy` URI scheme; selected GitHub/mail links open externally.
 
-Do not patch generated policy output directly. Its generator and shared outputs are owner-maintained; propose policy changes in an Issue. Authorized maintainers regenerate, review and commit the resulting copies together. See [local policy pages](../policies/README.en.md).
+Do not patch generated policy output directly. Change the source, regenerate, and review the resulting copies together. See [local policy pages](../policies/README.en.md).
 
 For new Chinese UI characters, inspect actual rendering. To rebuild the font, use a virtual environment with `fonttools`, then run `python tools/update_ui_font.py /path/to/NotoSansSC.ttf`. Keep the font license and inspect the diff; changing prose in Markdown does not require rebuilding the UI font.
 

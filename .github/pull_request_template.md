@@ -18,12 +18,7 @@ Trigger, previous behavior, and resulting behavior / 触发条件、原有表现
 - [ ] Permissions, network/data use and dependencies explained / 已说明权限、网络、数据及依赖变化
 - [ ] English/Chinese docs updated where relevant / 相关中英文文档已同步
 - [ ] No credentials, private photos or build output / 无凭据、私人照片或构建产物
-- [ ] Owner-only paths follow CONTRIBUTING / 所有者维护范围遵守 CONTRIBUTING
 
 ## Credit (optional) / 署名（可选）
 
 Co-authors and roles / 共同作者及分工：
-
-Public contributor-page listing / 贡献者页面公开展示：Yes / No（愿意／不展示）
-
-Normal authorship is preserved either way. The owner confirms adopted contributions and optional listing; do not edit score records directly. / 无论是否展示均保留正常署名。所有者确认已采纳成果与自愿展示，不直接修改分数记录。

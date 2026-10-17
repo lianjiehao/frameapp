@@ -2,7 +2,6 @@
 import html
 import json
 from pathlib import Path
-from community import render as render_community
 from policy_config import validate_config
 
 PROJECT = Path(__file__).resolve().parent.parent
@@ -13,7 +12,6 @@ OUTPUT.mkdir(parents=True, exist_ok=True)
 OPERATOR = html.escape(CONFIG['operator'])
 EMAIL = html.escape(CONFIG['email'])
 VERSION = html.escape(CONFIG['version'])
-COMMUNITY = json.loads((PROJECT / 'policies/community.json').read_text())
 TEMPLATE_NOTICE = '<p class="meta">发布者应按实际版本填写运营者、联系方式与数据处理说明。</p>'
 FOOTER = f'{OPERATOR}<br><a href="mailto:{EMAIL}">{EMAIL}</a>'
 
@@ -29,20 +27,15 @@ def section(anchor, title, content):
     return f'<section id="{anchor}"><h2>{title}</h2>{content}</section>'
 
 
-CSS += '''
-.community-intro{font-size:18px;line-height:1.9;color:var(--muted);margin:25px 0}.community-status{font-size:13px;color:var(--muted);padding-bottom:24px;border-bottom:1px solid var(--line)}.community-cta{display:inline-flex;align-items:center;gap:32px;background:var(--ink);color:var(--paper);padding:12px 20px;text-decoration:none;margin-bottom:24px}.community-cta:hover{color:var(--acid)}.community-empty{padding:36px 0 46px;border-bottom:1px solid var(--line)}.empty-mark{display:block;font:60px/1 Georgia,serif;color:#65812c}.community-empty h2{font-size:clamp(26px,5vw,38px);line-height:1.5;margin:18px 0}.community-empty p{color:var(--muted)}.contributor{padding:28px 0;border-bottom:1px solid var(--line)}.contributor-top{display:flex;gap:18px;align-items:center}.rank{font:28px/1 Georgia,serif;color:#69842d}.identity{flex:1;min-width:0}.person-name{font-size:22px;text-decoration:none;font-weight:600;overflow-wrap:anywhere}.identity p{font-size:12px;color:var(--muted);margin:4px 0}.credit{text-align:right;flex-shrink:0}.credit strong{display:block;font:36px/1.2 Georgia,serif}.credit small{display:block}.evidence{list-style:none;padding:0;margin:18px 0}.evidence li{margin:12px 0}.evidence small{display:block}.recent{font-size:12px;color:var(--muted)}.contribution-types{display:grid;grid-template-columns:1fr 1fr;gap:10px 28px}.contribution-types p{font-size:14px;color:var(--muted)}.contribution-types strong{font-size:17px;color:var(--ink)}@media(max-width:480px){.contributor-top{gap:12px}.person-name{font-size:18px}.rank{font-size:23px}.credit strong{font-size:30px}.contribution-types{gap:4px 20px}}
-'''
-
-
 privacy = section('operator', '01 · 谁提供这个服务', f'''
-<p>「取景 · FRAME」由{OPERATOR}运营。本政策适用于取景 App 中的拍照、构图建议、主体跟踪、照片保存，以及应用内的说明和贡献者页面。</p>
+<p>「取景 · FRAME」由{OPERATOR}运营。本政策适用于取景 App 中的拍照、构图建议、主体跟踪、照片保存，以及应用内的说明页面。</p>
 <p>隐私联系邮箱：<a href="mailto:{EMAIL}">{EMAIL}</a>。本版本不要求注册或登录，没有广告、云端照片分析或第三方统计服务。</p>''')
 privacy += section('data', '02 · 使用哪些信息', '''
 <h3>取景与构图</h3><p>开启相机后，App 在设备内处理<span class="sensitive">实时相机画面、你点选的主体位置与画面特征</span>，用于显示预览、跟踪主体和推荐构图。取景画面可能包含人像等敏感内容；请留意画面中的他人隐私。App 不进行身份识别，不建立人脸档案，也不会把这些画面传到服务器。退出取景或撤回同意后，停止相机和画面分析，清除当前跟踪状态。</p>
 <h3>拍照与保存</h3><p>按快门后，App 在设备内生成照片。相机产生的临时文件在读取后尝试删除；当前照片暂存于 App 内，以便预览或在保存失败后重试。成功保存的照片存放在系统相册，由你通过系统相册管理和删除。App 不扫描、读取或上传相册中的其他照片，不在照片中写入 GPS 位置。撤回同意会清除 App 中当前照片的内存副本，不会删除你已保存到系统相册的照片。</p>
 <h3>水平提示</h3><p>取景时读取设备的加速度／重力方向，显示水平和仰俯姿态提示；这些读数在设备内即时使用，不建立运动历史或上传服务器。</p>
 <h3>本机设置</h3><p>在 App 私有存储内保存你是否同意本政策、同意的政策版本、权限申请是否已提示等设置，以避免重复打扰。这些记录不包含账号、通讯录或广告标识符，不上传服务器。撤回同意会删除同意记录；卸载 App 可清除本机设置，具体以系统行为为准。</p>
-<h3>内置说明与外部链接</h3><p>帮助、政策和贡献者页面随应用提供，在设备内渲染。你主动点击 GitHub 或邮件链接时，会打开系统浏览器或邮件程序，由相应服务处理你的访问或邮件内容。分享问题或截图前，请遮挡私人信息。</p>''')
+<h3>内置说明与外部链接</h3><p>帮助与政策页面随应用提供，在设备内渲染。你主动点击 GitHub 或邮件链接时，会打开系统浏览器或邮件程序，由相应服务处理你的访问或邮件内容。分享问题或截图前，请遮挡私人信息。</p>''')
 privacy += section('permissions', '03 · 权限由你决定', '''
 <ul><li><strong>相机：</strong>用于实时取景和拍照。首次进入真实取景前说明用途，再请求系统授权。拒绝后无法使用真实相机，但仍可查看指南、政策并使用练习模式。</li>
 <li><strong>保存照片：</strong>仅在保存照片且系统确实需要权限时说明并申请。iOS 使用仅添加照片权限；旧版 Android 可能需要存储写入权限，新版 Android 按系统相册接口保存。拒绝后不影响已经拍下的照片在 App 内暂存，可稍后主动重试保存。</li>
@@ -53,7 +46,6 @@ privacy += section('thirdparty', '04 · 第三方组件', '''
 privacy += section('rights', '05 · 如何管理和撤回', f'''
 <p>你可在系统设置中管理相机和保存照片权限，在 App 的「拍照指南 → 隐私与权限」中查阅本政策或撤回同意。撤回后立即停止取景和传感器读取，返回告知页；已保存的照片继续由你管理。</p>
 <p>你可通过 <a href="mailto:{EMAIL}">{EMAIL}</a> 提出访问、更正、删除或其他隐私请求。请说明问题及必要的核验信息，无需发送原始照片；实际运营者应补充处理渠道与回复时限，并依法处理。由于照片与取景分析留在你的设备，我们无法远程调取这些照片。发送邮件时，你的邮箱地址和邮件内容会由邮件服务商处理，我们仅用于回复与处理你的请求。</p>''')
-privacy += section('community', '贡献者展示', '''<p>参与者明确同意后，我们在贡献者页面展示公开的 GitHub 用户名、自选昵称、已确认贡献及其公开证据链接。不会在该页面展示私人邮箱、未同意展示的身份或原始照片。贡献者可以联系本政策中的邮箱更正记录、调整昵称或退出展示；退出展示不会删除正常的代码署名。点开 GitHub 资料或贡献证据时，由 GitHub 按其规则处理网页访问。</p>''')
 privacy += section('children', '06 · 未成年人与信息安全', '''
 <p>未成年人应在监护人指导下使用；未满 14 周岁的用户应由监护人阅读本政策并同意。请避免拍摄、传播侵犯他人隐私的内容。</p><p>请保护自己的设备和相册。若发生与个人信息有关的安全事件，实际发布者应按适用规定采取处理措施并通知。</p>''')
 privacy += section('updates', '07 · 政策版本', '''
@@ -95,12 +87,15 @@ PAGES = {
     'sdk': ('第三方组件清单', '了解每个组件的用途和处理范围。', sdk),
     'terms': ('用户协议', '拍摄由你决定，照片由你管理。', terms),
     'support': ('帮助与联系', '遇到问题，告诉我们。', support),
-    'contributors': ('贡献者', '让每一份贡献，被看见。', render_community(COMMUNITY)),
 }
+
+for path in OUTPUT.glob('*.html'):
+    if path.stem not in {*PAGES, 'index'}:
+        path.unlink()
 
 for slug, (title, summary, content) in PAGES.items():
     links = ''.join(f'<a href="/{key}">{label}</a>' for key,(label,_,_) in PAGES.items() if key != slug)
-    meta = '' if slug == 'contributors' else f'<p class="meta">版本 {VERSION} · 更新与生效日期 {VERSION}</p>'
+    meta = f'<p class="meta">版本 {VERSION} · 更新与生效日期 {VERSION}</p>'
     doc = f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light"><meta name="referrer" content="no-referrer"><title>{title} · 取景 FRAME</title><style>{CSS}</style></head><body><main class="wrap"><header><a class="brand" href="/">frame<span>取景</span></a><span class="eyebrow">{title}</span></header><h1>{title}</h1>{meta}{TEMPLATE_NOTICE}<div class="summary"><p>{summary}</p></div>{content}<nav aria-label="更多说明">{links}</nav><footer>{FOOTER}</footer></main></body></html>'''
     (OUTPUT / f'{slug}.html').write_text(doc)
 

@@ -1,27 +1,22 @@
-# Independent distribution and templates
+# Software copyright application materials
 
 [简体中文](README.md) | [English](README.en.md)
 
-This directory provides signing examples, local policy pages, checklists and copyright-document templates for developers preparing a distribution. Adapt them to your build and target market. Templates do not establish registration, filing or store approval.
+Blank templates for software copyright applications, with a tool that generates PDFs from the current source and your completed manual. Adapt them to your software version and filing requirements.
 
-## Fill in before distribution
+## 1. Fill in the templates
 
-| Item | Location and requirements |
+Copy these files into the Git-ignored `docs/software-copyright/` directory and enter your own details. Keep the shared templates blank:
+
+| Template | Purpose |
 | --- | --- |
-| Operator, contact and policy version | [config.json](../../policies/config.json); fill in actual details. See [local policy pages](../../policies/README.en.md) to edit and generate the documents. |
-| App name, icon, identifiers and version | `pubspec.yaml` and Android/iOS projects; use your own identity and assets. |
-| Signing and store accounts | [Android](../android-release.md), [iOS](../ios-setup.md); use your own accounts and certificates. |
-| Listing, screenshots, privacy disclosures | [Listing template](templates/store-listing.md); every statement must match the shipped build. |
-| Copyright application and manual | [Application fields](templates/copyright-application.md), [metadata](templates/copyright-metadata.example.json), [manual](templates/software-description.md). |
-| Fork repository and contributor display | `policies/community.json`, `.github/contributors-ownership.json`, CODEOWNERS and ruleset templates; configure your own governance while retaining upstream copyright notices. |
+| [Application fields](templates/copyright-application.md) | Check applicant, ownership, dates and related details |
+| [Metadata](templates/copyright-metadata.example.json) | Rename to `copyright-metadata.json`; enter the software name, version, applicant and other details |
+| [Software manual](templates/software-description.md) | Describe features, usage, implementation and data handling |
 
-Keep completed personal/company records, certificates, applications and exports outside Git or in the ignored `docs/software-copyright/` directory. Leave the shared templates blank. Fill in the contact email and other placeholders before distribution.
+## 2. Generate PDFs
 
-## Generate copyright materials
-
-Copy the three copyright templates into `docs/software-copyright/`, rename the metadata file to `copyright-metadata.json`, then complete the metadata and manual. Distinguish upstream code, your additions and third-party assets. Do not claim the entire fork as original work or treat MIT as a copyright assignment. Publication status must reflect actual public availability; open source does not mean “unpublished”.
-
-Install Python `reportlab` and provide a licensed TTF font with Chinese coverage:
+Install Python `reportlab` and prepare a licensed TTF font with Chinese coverage. Run from the repository root, replacing the font path with your actual file:
 
 ~~~sh
 python3 tools/build_software_copyright_materials.py \
@@ -30,6 +25,13 @@ python3 tools/build_software_copyright_materials.py \
   --font /path/to/licensed-cjk.ttf
 ~~~
 
-Outputs are `docs/software-copyright/source-materials.pdf` and `software-description.pdf`. The generator uses 50 source lines per page: the first and last 30 pages when longer than 60 pages, otherwise the full listing. It assists formatting, not eligibility or compliance with current filing requirements. Review completeness and layout before use.
+Outputs are saved in `docs/software-copyright/`:
 
-Complete the [release checklist](../release-checklist.md) and verify current market and jurisdiction requirements. Code uses MIT; each distributor handles their own data practices, asset rights, filings and user support. See [legal and licensing](../legal.md).
+- `source-materials.pdf`: 50 source lines per page; the first and last 30 pages if longer than 60 pages, otherwise the full listing.
+- `software-description.pdf`: the software manual.
+
+## 3. Review the materials
+
+Check PDF contents and layout, and complete the official application as required by the receiving agency. Distinguish upstream code, your additions and third-party assets; report ownership and publication status accurately. MIT is not a copyright assignment. The tool helps prepare materials and does not guarantee registration; see [licensing](../legal.md). Keep completed records and exports out of Git.
+
+Optional resources: [Android builds](../android-release.md) · [iOS development](../ios-setup.md) · [Store listing template](templates/store-listing.md).

@@ -317,6 +317,19 @@ void main() {
     await tester.tap(find.byTooltip('拍照指南'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
+    final help = find.byType(BottomSheet);
+    expect(help, findsOneWidget);
+    expect(
+      find.descendant(
+        of: help,
+        matching: find.byWidgetPredicate((widget) => widget is TextButton),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: help, matching: find.text('隐私与权限')),
+      findsOneWidget,
+    );
     await tester.tap(find.text('隐私与权限'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));

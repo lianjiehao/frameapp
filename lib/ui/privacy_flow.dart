@@ -167,9 +167,7 @@ class PrivacyHub extends StatelessWidget {
     appBar: AppBar(title: const Text('隐私与权限')),
     body: ListView(
       children: [
-        for (final document in PolicyDocument.values.where(
-          (doc) => doc != PolicyDocument.contributors,
-        ))
+        for (final document in PolicyDocument.values)
           ListTile(
             title: Text(document.title),
             trailing: const Icon(Icons.chevron_right),

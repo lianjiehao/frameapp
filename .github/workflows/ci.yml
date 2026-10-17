@@ -37,7 +37,7 @@ jobs:
       - run: flutter test --coverage
       - name: Check developer documentation
         run: python3 tools/check_docs.py
-      - name: Validate community and generated pages
+      - name: Validate tooling and generated pages
         run: |
           python3 -m unittest discover -s tools/tests
           python3 tools/build_policy_pages.py

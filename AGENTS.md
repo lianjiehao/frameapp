@@ -21,7 +21,7 @@ For REA-based feature research or extension, use [frame-rea](.agents/skills/fram
 
 - No camera, sensor or permission activity before privacy consent. Withdrawal stops capture/analysis and clears the in-memory photo; it does not delete photos already saved to the gallery.
 - Permission prompts are contextual. A rejection requires an explicit retry; do not add microphone, location, photo-library read access, analytics or image uploads as an incidental fix.
-- Help, policy and contributor documents render from generated in-app HTML. Keep document navigation local and external links user-initiated.
+- Help and policy documents render from generated in-app HTML. Keep document navigation local and external links user-initiated.
 - Web is practice-only. Phone practice mode uses `DEMO_MODE=true`. Do not activate a browser camera while fixing mobile behavior.
 - Pixels, preview, tap coordinates and capture share orientation, mirroring and centered 3:4 cropping. Respect native row/pixel strides. Tracking uses 192×256 frames; scene analysis uses 96×128 frames.
 - The selected subject stays the selected subject. Do not silently substitute automatic detections; hide the visible tracking box when lost. Recommendation requires a valid selection and a fresh frame.
@@ -39,11 +39,11 @@ If a request intentionally changes one of these contracts, identify the change, 
 - Keep private signing files, passwords, profiles and store API keys outside Git and tool output. The checked-in signing code and placeholder example are not credentials. Android development uses a local debug key; iOS device testing uses the contributor’s own development team.
 - Do not claim MIT prohibits independent forks or redistribution. Official account/key access and authority to act for the owner are separate from the code license.
 
-## Generated and owner-maintained files
+## Generated files and assets
 
 - Completed store/copyright forms stay outside Git or in ignored `docs/software-copyright/`; only sanitized blank templates are shared.
-- Do not hand-edit `assets/legal/` or `lib/services/policy_pages.g.dart`. Their generator is `tools/build_policy_pages.py`; inputs include `policies/config.json` and `policies/community.json`.
-- Contributor attribution, scoring and shared policy sources have owner restrictions. Consult [.github/contributors-ownership.json](.github/contributors-ownership.json) and [CONTRIBUTING.md](CONTRIBUTING.md). Normal contributor changes must not bypass them; owner-authorized maintenance follows the owner branch workflow.
+- Do not hand-edit `assets/legal/` or `lib/services/policy_pages.g.dart`. Their generator is `tools/build_policy_pages.py`; configuration is in `policies/config.json`.
+- Changes require the review defined by [.github/CODEOWNERS](.github/CODEOWNERS) and [CONTRIBUTING.md](CONTRIBUTING.md). Keep generated policy documents synchronized with their sources.
 - New Chinese UI text may need missing glyphs added to `assets/fonts/FrameSans-Regular.ttf` via `tools/update_ui_font.py` and a licensed full Noto Sans SC source. See architecture; do not replace the font without checking its license and rendered text.
 - Keep README.md and CONTRIBUTING.md as the default Chinese entries, with linked README.en.md and CONTRIBUTING.en.md counterparts. Keep all English/Chinese pairs synchronized, including commands and links. Document headers contain only their own language links; keep body links relevant to the topic. Do not add personal workstation paths, historical local test diaries, release archives or signing material to public docs.
 

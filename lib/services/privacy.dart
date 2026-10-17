@@ -7,8 +7,7 @@ enum PolicyDocument {
   terms('terms', '用户协议'),
   permissions('permissions', '权限使用说明'),
   sdk('sdk', '第三方组件清单'),
-  support('support', '帮助与联系'),
-  contributors('contributors', '贡献者');
+  support('support', '帮助与联系');
 
   const PolicyDocument(this.path, this.title);
   final String path, title;

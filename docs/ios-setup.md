@@ -2,7 +2,7 @@
 
 [English](ios-setup.md) | [简体中文](ios-setup.zh-CN.md)
 
-Requires macOS, full Xcode and Flutter 3.47.6. The project targets iOS 15+ and uses Swift Package Manager. CI selects Xcode 26.3; use Xcode compatible with your Mac and target device, then verify `flutter doctor -v`.
+Requires macOS, full Xcode compatible with your target device, and Flutter 3.47.6. The project targets iOS 15+ and uses Swift Package Manager.
 
 ## Build and run
 
@@ -16,9 +16,9 @@ flutter devices
 open ios/Runner.xcworkspace
 ~~~
 
-3. In Runner → Signing & Capabilities, select your own development team and, when needed, a unique bundle identifier. Do not use the maintainer's team or commit your local signing changes.
-4. Connect and trust your iPhone, enable Developer Mode if required, then run `flutter run -d <device-id>`. On-device trust and signing must be completed using your own account.
-5. Without signing, a build check is `flutter build ios --release --no-codesign`; it does not produce an installable store release.
+3. In Runner → Signing & Capabilities, select your own development team and, when needed, a unique Bundle ID. Do not commit local signing changes.
+4. Connect and trust your iPhone, enable Developer Mode if required, then run `flutter run -d <device-id>`.
+5. Use `flutter build ios --release --no-codesign` for a compilation check; its output cannot be installed directly.
 
 ## Permission plugin
 
@@ -26,6 +26,4 @@ Keep the existing camera, add-only photos and motion usage descriptions in `ios/
 
 ## Verify on a phone
 
-Check first-launch consent, refusal and explicit retry; real preview and front/rear orientation; selected-subject movement and loss; shutter and gallery save; failed-save retry; background/resume; policy-page return; and consent withdrawal. Record model, iOS version, commit and observed results in the PR. Simulator and unsigned build success are not camera or App Store validation.
-
-Distributors use their own team, bundle ID, signing and App Store Connect account; complete the [distribution templates](distribution/README.en.md) and [release checklist](release-checklist.md).
+Use the [device and build checks](release-checklist.md) to verify the camera, permissions and saving. Record the device, iOS version and results in the PR. Simulator or unsigned builds do not replace device verification.

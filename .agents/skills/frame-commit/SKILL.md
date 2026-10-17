@@ -27,7 +27,7 @@ Fetch only the selected remote as needed to inspect its current state. This refr
 
 Inspect **every local commit that the proposed push would publish**, not just the new commit. For an existing destination, compare against that remote branch; for a new feature branch, compare against the agreed base branch and inspect ancestry. Show pending SHAs/subjects in the preview. If the remote is ahead/diverged, prepare no automatic pull/rebase/reset; explain what must be reconciled first.
 
-Follow the project's PR workflow: on `main` or another protected base, propose a feature branch (default `codex/<short-topic>`) and include its creation in the preview. Do not change branches before confirmation. Check that an existing branch with the proposed name is the intended one; do not overwrite it. Protected files in [.github/contributors-ownership.json](../../../.github/contributors-ownership.json) require the owner workflow in CONTRIBUTING; check actual authenticated identity and branch protection when relevant, not a name/email from Git config. Do not bypass ownership checks or promise an ordinary contributor can merge protected-path changes.
+Follow the project's PR workflow: on `main` or another protected base, propose a feature branch (default `codex/<short-topic>`) and include its creation in the preview. Do not change branches before confirmation. Check that an existing branch with the proposed name is the intended one; do not overwrite it. Respect repository branch protection and the review requirements in [CONTRIBUTING](../../../CONTRIBUTING.md) and [CODEOWNERS](../../../.github/CODEOWNERS). A commit or push does not approve a PR for merging.
 
 Run checks appropriate to the selected change, following AGENTS.md:
 

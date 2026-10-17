@@ -9,6 +9,10 @@ import 'package:framecoach/ui/policy_view_native.dart';
 void main() {
   test('all policy documents have local content and a local address', () {
     expect(
+      PolicyDocument.values.map((document) => document.path),
+      unorderedEquals(['privacy', 'terms', 'permissions', 'sdk', 'support']),
+    );
+    expect(
       policyPages.keys,
       unorderedEquals([
         'index',

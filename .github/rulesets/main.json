@@ -21,8 +21,7 @@
       "required_status_checks": [
         {"context": "Code quality"},
         {"context": "Android build"},
-        {"context": "iOS build"},
-        {"context": "Contributor page ownership", "integration_id": 15368}
+        {"context": "iOS build"}
       ]
     }}
   ]

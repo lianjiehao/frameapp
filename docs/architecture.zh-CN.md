@@ -35,7 +35,7 @@
 | 页面、叠层和引导文案 | `main.dart`、`ui/guides.dart` | `widget_test.dart` + 实际渲染截图 |
 | 照片滤镜、强度、预览与 PNG 绘制 | `core/photo_filter.dart`、`ui/photo_filters.dart`、`services/coach.dart` | `photo_filter_test.dart` + 实际渲染截图 |
 | 隐私同意与权限 | `services/privacy.dart`、`services/permissions.dart`、`ui/privacy_flow.dart` | `privacy_test.dart` |
-| 本地政策渲染与跳转 | `services/policy_*.dart`、`ui/policy_*.dart` | `policy_content_test.dart`、`contributors_test.dart` |
+| 本地政策渲染与跳转 | `services/policy_*.dart`、`ui/policy_*.dart` | `policy_content_test.dart`、`privacy_test.dart` |
 
 源码相对 `lib/`，测试位于 `test/`。[AGENTS.md](../AGENTS.md) 记录了需要持续回归保护的行为约束。
 
@@ -53,13 +53,13 @@
 
 | 产物 | 来源与生成方式 |
 | --- | --- |
-| `assets/legal/`、`lib/services/policy_pages.g.dart` | `python3 tools/build_policy_pages.py`；正文在脚本中，配置在 `policies/config.json` 和 `policies/community.json` |
+| `assets/legal/`、`lib/services/policy_pages.g.dart` | `python3 tools/build_policy_pages.py`；正文在脚本中，配置在 `policies/config.json` |
 | `assets/fonts/FrameSans-Regular.ttf` | `tools/update_ui_font.py` 根据 Dart／政策文本，从有许可的完整 Noto Sans SC 字体生成子集 |
 | 构建目录、插件注册和本机 SDK 路径 | Flutter／平台工具生成，本机构建产物不提交 Git |
 
 运营者、联系方式与同意版本由 `policies/config.json` 生成。`policy_pages.g.dart` 提供原生与 Web 共用的 HTML。应用通过 `frame-policy` URI 处理页面间跳转；点击 GitHub／邮件链接时才打开外部程序。
 
-不要直接修改生成的政策副本。生成器及共享产物由所有者维护；修改建议通过 Issue 提出。获得授权的维护者修改源文件、重新生成，并一起审阅和提交副本，见 [本地政策页面](../policies/README.md)。
+不要直接修改生成的政策副本。修改源文件后重新生成，一起审阅和提交副本，见 [本地政策页面](../policies/README.md)。
 
 新增中文界面字符后检查实际显示。需要补字时，在虚拟环境安装 `fonttools`，执行 `python tools/update_ui_font.py /path/to/NotoSansSC.ttf`，保留字体许可并核对差异。只改 Markdown 文档无需重建界面字体。
 

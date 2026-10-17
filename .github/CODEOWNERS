@@ -1,24 +1,2 @@
-# Code owners must have write access. Last matching rule wins.
+# Code owners must have write access to approve protected pull requests.
 * @lianjiehao
-/.github/ @lianjiehao
-/lib/core/ @lianjiehao
-/lib/services/ @lianjiehao
-/android/ @lianjiehao
-/ios/ @lianjiehao
-/tools/ @lianjiehao
-
-# Contributor documents and data are maintained by @lianjiehao.
-# Required status "Contributor page ownership" enforces PR author identity.
-/.github/contributors-ownership.json @lianjiehao
-/.github/workflows/contributor-ownership.yml @lianjiehao
-/.github/rulesets/ @lianjiehao
-/policies/community.json @lianjiehao
-/policies/config.json @lianjiehao
-/assets/legal/contributors.html @lianjiehao
-/lib/services/policy_pages.g.dart @lianjiehao
-/tools/community.py @lianjiehao
-/tools/build_policy_pages.py @lianjiehao
-/tools/verify_contributions.py @lianjiehao
-/tools/check_contributor_ownership.py @lianjiehao
-/tools/tests/test_contributor_ownership.py @lianjiehao
-/policies/ @lianjiehao

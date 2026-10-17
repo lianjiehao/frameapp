@@ -1291,20 +1291,6 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
                 '想保留当前画面？也可以点击「直接拍照」。',
                 style: TextStyle(color: acid, fontSize: 11),
               ),
-              const SizedBox(height: 12),
-              TextButton.icon(
-                key: const Key('show-contributors'),
-                onPressed: () {
-                  Navigator.pop(context);
-                  unawaited(
-                    _showInfoPage(
-                      const PolicyPage(document: PolicyDocument.contributors),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.people_outline, size: 18),
-                label: const Text('贡献者'),
-              ),
               if (!coach.isDemo)
                 TextButton(
                   onPressed: () {

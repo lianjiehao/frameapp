@@ -30,7 +30,7 @@ Screenshots show the Chinese UI in practice mode. The app itself is not yet loca
 
 Live frames and photos are processed on the device, without a cloud recognition service. The app does not require an account or API key. Camera and saving permissions are requested when needed. You can withdraw consent from the privacy screen; photos already saved in the system gallery remain yours to manage.
 
-Help, policy and contributor pages ship with the app and render locally. Developers can customize the [policy content](../policies/README.en.md).
+Help and policy pages ship with the app and render locally. Developers can customize the [policy content](../policies/README.en.md).
 
 ## Expectations
 
