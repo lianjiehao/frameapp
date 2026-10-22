@@ -18,16 +18,17 @@ iOS 暂无可用下载链接；也可按下方步骤自行运行。
 
 ## 快速开始
 
-安装 **Flutter 3.47.6**、Git 和 Chrome：
+安装 **Flutter 3.47.6**、Git 和 Android SDK，连接已开启 USB 调试的 Android 7.0+ 手机：
 
 ~~~sh
 git clone https://github.com/lianjiehao/frameapp.git
 cd frameapp
 flutter pub get --enforce-lockfile
-flutter run -d chrome
+flutter devices
+flutter run -d <device-id>
 ~~~
 
-Android 7.0+ 真机运行：`flutter run -d <device-id>`；手机练习模式追加 `--dart-define=DEMO_MODE=true`。iOS 15+ 需要 macOS、Xcode 和自己的开发团队，见 [iOS 配置](docs/ios-setup.zh-CN.md)。帮助与政策页面在本地渲染。
+将 `<device-id>` 替换为 `flutter devices` 列出的手机设备 ID。iOS 15+ 需要 macOS、Xcode 和自己的开发团队，见 [iOS 配置](docs/ios-setup.zh-CN.md)。帮助与政策页面在本地渲染。
 
 ## 开发与贡献
 
@@ -39,6 +40,6 @@ Android 7.0+ 真机运行：`flutter run -d <device-id>`；手机练习模式追
 
 ## 法律与许可
 
-代码采用 [MIT](LICENSE)，依赖、字体与素材遵循[各自许可](THIRD_PARTY_NOTICES.md)。功能演示与研究流程面向学习和研究，不限制 MIT 授予的商用、修改或分发权利。
+代码采用 [MIT](LICENSE)，依赖、字体与素材遵循[各自许可](THIRD_PARTY_NOTICES.md)。本项目面向学习与研究，不限制 MIT 授予的商用、修改或分发权利。
 
 软件按现状提供。使用、研究及分发须核实授权，尊重版权、隐私与肖像权；免责声明不免除法定责任，详见 [使用与许可边界](docs/legal.zh-CN.md)。安全问题见 [SECURITY.md](SECURITY.md)。

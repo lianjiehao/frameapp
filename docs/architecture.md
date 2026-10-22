@@ -10,7 +10,7 @@
 4. [platform services](../lib/services/): conditional native/Web photo capture, saving and local policy rendering.
 
 ~~~text
-Camera / practice image
+Image input
   → pixel_buffer: orientation, mirror, centered 3:4 crop
   → GrayFrame: tracking at 192×256; scene analysis at 96×128
   → subject_tracking + vision + scene_evidence
@@ -65,7 +65,7 @@ Only the photo layer passes through `FilteredPhoto`; guides and text retain thei
 
 The same sheet also offers brightness, contrast, saturation and warmth. Their neutral value is zero, displayed on a −100 to +100 scale. These local adjustments compose after the preset's color matrix and before its texture; neutral adjustments preserve the existing preset output. They also work with Original or zero preset strength. Reset clears the four adjustments while keeping the selected style and its strength. All controls remain in the modal sheet, so they add no row below the viewfinder. The capture recipe includes these adjustments and saving retries retain them.
 
-`photo_filter_test.dart` compares rendered preview and export pixels, checks zero strength, monochrome output, cropping/mirroring and save retries. Widget screenshots use the licensed practice image. Native camera textures, front/back camera orientation, gallery output, permission interruption and capture during backgrounding still require real-device verification on Android and iOS; widget rendering does not establish device color or performance parity.
+`photo_filter_test.dart` compares rendered preview and export pixels, checks zero strength, monochrome output, cropping/mirroring and save retries. Widget screenshots use the licensed sample image. Native camera textures, front/back camera orientation, gallery output, permission interruption and capture during backgrounding still require real-device verification on Android and iOS; widget rendering does not establish device color or performance parity.
 
 ## Generated content and assets
 
@@ -81,4 +81,4 @@ Do not patch generated policy output directly. Change the source, regenerate, an
 
 For new Chinese UI characters, inspect actual rendering. To rebuild the font, use a virtual environment with `fonttools`, then run `python tools/update_ui_font.py /path/to/NotoSansSC.ttf`. Keep the font license and inspect the diff; changing prose in Markdown does not require rebuilding the UI font.
 
-Licenses for the practice photo and documentation screenshots are listed in [Third-party notices](../THIRD_PARTY_NOTICES.md). Screenshots are presentation assets, not device-test evidence.
+Licenses for the bundled photo and documentation screenshots are listed in [Third-party notices](../THIRD_PARTY_NOTICES.md). Screenshots are presentation assets, not device-test evidence.
