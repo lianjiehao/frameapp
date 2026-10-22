@@ -10,11 +10,11 @@ A Flutter composition camera for learning and research: select a subject, compar
 
 | Platform | Download |
 | --- | --- |
-| Android | APK download link to be added |
+| Android | [Download APK](https://www.pgyer.com/9baefc9fec2a3373015d549f23b8eef6) |
 | iOS | Installation or TestFlight link to be added |
 
 <!-- Replace these placeholders only when a verified build is available. -->
-No downloads are available here yet. Build locally using the instructions below.
+iOS downloads are not available here yet. Build locally using the instructions below.
 
 ## Quick start
 

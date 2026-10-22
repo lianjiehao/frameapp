@@ -14,6 +14,7 @@ import '../core/vision.dart';
 import 'gallery.dart';
 import 'gallery_error.dart';
 import 'camera_photo.dart';
+import 'camera_zoom.dart';
 
 enum CapturePhase {
   framing,
@@ -36,10 +37,14 @@ typedef _PreviewRequest = ({
   Point2? previous,
   bool selected,
   SubjectTrackSnapshot? tracking,
+  double zoom,
 });
 
+GrayFrame _samplePreview(_PreviewSource source) =>
+    source.frame ?? source.plane!.sample();
+
 (GrayFrame, CompositionAnalysis) _analyzePreview(_PreviewRequest request) {
-  final frame = request.source.frame ?? request.source.plane!.sample();
+  final frame = _samplePreview(request.source);
   return (
     frame,
     analyzeComposition(
@@ -49,6 +54,7 @@ typedef _PreviewRequest = ({
         request.previous,
         subjectLocked: request.selected,
         tracking: request.tracking,
+        zoom: request.zoom,
       ),
     ),
   );
@@ -63,7 +69,9 @@ class CameraCoach extends ChangeNotifier {
     this.levelEvents,
   }) : isDemo = demo ?? (kIsWeb || const bool.fromEnvironment('DEMO_MODE')),
        _saver = saver ?? savePhoto,
-       _now = now ?? DateTime.now;
+       _now = now ?? DateTime.now {
+    zoom = CameraZoomState(onChanged: _zoomChanged, onSettled: _zoomSettled);
+  }
   final DateTime Function() _now;
   final PhotoSaver _saver;
   Future<bool> Function(bool explicit)? beforeSave;
@@ -80,9 +88,17 @@ class CameraCoach extends ChangeNotifier {
   String? error, saveError;
   CapturePhase phase = CapturePhase.framing;
   CameraController? camera;
+  late final CameraZoomState zoom;
+  bool _zoomWasAdjusting = false, _zoomWasAvailable = false;
   List<CameraDescription> cameras = [];
   int cameraIndex = 0, _session = 0, _generation = 0;
   FlashMode flash = FlashMode.off;
+  bool get canZoom =>
+      !disposed &&
+      !isDemo &&
+      initialized &&
+      camera?.description.lensDirection == CameraLensDirection.back &&
+      zoom.available;
   SceneFeatures features = const SceneFeatures();
   List<CompositionPlan> plans = [];
   CompositionPlan? plan;
@@ -111,6 +127,7 @@ class CameraCoach extends ChangeNotifier {
   bool get canRecommend =>
       !disposed &&
       initialized &&
+      !zoom.isAdjusting &&
       phase == CapturePhase.framing &&
       subjectLock.state == SubjectState.tracking &&
       subjectLock.trackable &&
@@ -147,6 +164,9 @@ class CameraCoach extends ChangeNotifier {
     SubjectState.needsDetail => '请点在主体清晰的轮廓上',
   };
   GrayFrame? _frame;
+  Point2? _pendingSelection;
+  bool get selectingSubject => _pendingSelection != null;
+  double _frameZoom = 1;
   (_PreviewSource, DateTime)? _pendingFrame;
   DateTime? _lastFrame;
   DateTime _lastAnalysis = DateTime.fromMillisecondsSinceEpoch(0);
@@ -227,6 +247,7 @@ class CameraCoach extends ChangeNotifier {
         initialized = true;
         if (levelEvents != null) _startLevel();
         _frame = _sampleDemo();
+        _frameZoom = zoom.value;
         features = const FrameAnalyzer().analyze(analysisFrame(_frame!));
         _lastFrame = _now();
         _demoTimer?.cancel();
@@ -264,6 +285,25 @@ class CameraCoach extends ChangeNotifier {
         }
         await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
         initialized = true;
+        if (controller.description.lensDirection != CameraLensDirection.back) {
+          zoom.reset();
+        } else {
+          try {
+            final limits = await Future.wait([
+              controller.getMinZoomLevel(),
+              controller.getMaxZoomLevel(),
+            ]);
+            if (disposed || session != _session || camera != controller) {
+              await controller.dispose();
+              return;
+            }
+            zoom.configure(limits[0], limits[1]);
+          } catch (_) {
+            if (!disposed && session == _session && camera == controller) {
+              zoom.configure(1, 1);
+            }
+          }
+        }
         _startLevel();
         await _startStream(controller);
       }
@@ -283,7 +323,13 @@ class CameraCoach extends ChangeNotifier {
           subjectLock.markLost();
           features = features.withSubject(null, 0);
           phase = CapturePhase.guiding;
-          alignment = const AlignmentResult(false, 0, 0, '稳住手机，等待画面恢复', false);
+          alignment = AlignmentResult(
+            false,
+            0,
+            0,
+            _pendingSelection == null ? '稳住手机，等待画面恢复' : '正在重新锁定主体',
+            false,
+          );
           _notify();
         }
       });
@@ -369,6 +415,7 @@ class CameraCoach extends ChangeNotifier {
     await controller.startImageStream((image) {
       if (disposed ||
           phase == CapturePhase.capturing ||
+          zoom.isAdjusting ||
           _now().difference(_lastAnalysis).inMilliseconds < 120) {
         return;
       }
@@ -453,6 +500,7 @@ class CameraCoach extends ChangeNotifier {
     DateTime? capturedAt,
   }) async {
     if (disposed ||
+        zoom.isAdjusting ||
         phase == CapturePhase.capturing ||
         phase == CapturePhase.analyzing ||
         phase == CapturePhase.captured) {
@@ -466,18 +514,36 @@ class CameraCoach extends ChangeNotifier {
     _busy = true;
     _lastAnalysis = _now();
     final generation = _generation, session = _session;
+    final frameZoom = zoom.value;
     try {
+      final selection = _pendingSelection;
+      if (selection != null) {
+        // A tap must be able to escape stale/slow recovery of the old subject.
+        // Sample the newest queued pixels without running that old tracker.
+        // Keep the original capture time: an expired sample cannot seed a lock.
+        final frame = await compute(_samplePreview, source);
+        if (disposed || generation != _generation || session != _session) {
+          return;
+        }
+        _frame = frame;
+        _frameZoom = frameZoom;
+        _lastFrame = frameTime;
+        if (_hasFreshFrame) selectSubject(selection);
+        return;
+      }
       final (frame, analysis) = await compute(_analyzePreview, (
         source: source,
         template: subjectLock.template,
         previous: subjectLock.position,
         selected: subjectLock.selected,
         tracking: subjectLock.tracking,
+        zoom: frameZoom,
       ));
       if (disposed || generation != _generation || session != _session) {
         return;
       }
       _frame = frame;
+      _frameZoom = frameZoom;
       _lastFrame = frameTime;
       features = analysis.features;
       evidence = analysis.evidence;
@@ -499,6 +565,7 @@ class CameraCoach extends ChangeNotifier {
       }
       _notify();
     } catch (_) {
+      if (disposed || generation != _generation || session != _session) return;
       subjectLock.markLost();
       features = features.withSubject(null, 0);
       _alignment.reset();
@@ -544,6 +611,7 @@ class CameraCoach extends ChangeNotifier {
           subjectLock.position,
           subjectLocked: subjectLock.selected,
           tracking: subjectLock.tracking,
+          zoom: _frameZoom,
         ),
       );
     } catch (_) {
@@ -585,6 +653,85 @@ class CameraCoach extends ChangeNotifier {
     plan = plans.first;
     phase = CapturePhase.recommending;
     _notify();
+  }
+
+  void _zoomChanged() {
+    // Per-frame values repaint only the zoom overlay. The rest of the page
+    // needs a rebuild only when availability or capture eligibility changes.
+    final adjusting = zoom.isAdjusting, available = zoom.available;
+    if (adjusting && !_zoomWasAdjusting && selectingSubject) {
+      _generation++;
+      _pendingSelection = null;
+    }
+    final invalidated = zoom.busy && subjectLock.state == SubjectState.tracking;
+    if (invalidated) {
+      // The preview is already changing scale. Its old box and ready state
+      // must not remain visible while analysis waits for the gesture to end.
+      _generation++;
+      _pendingFrame = null;
+      subjectLock.markLost();
+      features = features.withSubject(null, 0);
+      _alignment.reset();
+      if (phase == CapturePhase.ready || phase == CapturePhase.guiding) {
+        phase = CapturePhase.guiding;
+        alignment = const AlignmentResult(false, 0, 0, '稳住手机，等待画面恢复', false);
+      }
+    }
+    if (!invalidated &&
+        _zoomWasAdjusting == adjusting &&
+        _zoomWasAvailable == available) {
+      return;
+    }
+    _zoomWasAdjusting = adjusting;
+    _zoomWasAvailable = available;
+    _notify();
+  }
+
+  void requestZoom(double value) {
+    final controller = camera;
+    if (!canZoom ||
+        controller == null ||
+        phase == CapturePhase.capturing ||
+        phase == CapturePhase.captured) {
+      return;
+    }
+    final next = zoom.range.clamp(value);
+    if (!zoom.busy && next == zoom.value) return;
+    if (!zoom.busy) {
+      _generation++;
+      _pendingFrame = null;
+    }
+    zoom.request(next, (level) async {
+      if (disposed || camera != controller || !initialized) {
+        throw StateError('Camera session changed during zoom adjustment');
+      }
+      await controller.setZoomLevel(level);
+    });
+  }
+
+  void beginZoomGesture() {
+    if (!canZoom) return;
+    zoom.beginGesture();
+  }
+
+  void endZoomGesture() {
+    zoom.endGesture();
+  }
+
+  void _zoomSettled(bool requested) {
+    if (!requested || disposed) return;
+    _generation++;
+    _frame = null;
+    _lastFrame = null;
+    _pendingFrame = null;
+    plans = [];
+    plan = null;
+    _alignment.reset();
+    alignment = const AlignmentResult(false, 0, 0, '倍率已更新，等待主体重新跟踪', false);
+    if (subjectLock.selected) subjectLock.markLost();
+    features = features.withSubject(null, 0);
+    if (phase != CapturePhase.framing) phase = CapturePhase.framing;
+    error = null;
   }
 
   void choosePlan(CompositionPlan next) {
@@ -629,14 +776,29 @@ class CameraCoach extends ChangeNotifier {
   }
 
   void selectSubject(Point2 p) {
-    if (_frame == null ||
+    if (disposed ||
+        !initialized ||
+        zoom.isAdjusting ||
         phase == CapturePhase.analyzing ||
         phase == CapturePhase.capturing ||
         phase == CapturePhase.captured) {
       return;
     }
     _generation++;
-    subjectLock.select(_frame!, p);
+    if (!_hasFreshFrame) {
+      // Retain only the latest explicit tap. The next camera sample services
+      // this request before tracking; do not silently ignore it or use old pixels.
+      _pendingSelection = p;
+      subjectLock.markLost();
+      features = features.withSubject(null, 0);
+      _alignment.reset();
+      if (phase == CapturePhase.ready) phase = CapturePhase.guiding;
+      alignment = const AlignmentResult(false, 0, 0, '正在重新锁定主体', false);
+      _notify();
+      return;
+    }
+    _pendingSelection = null;
+    subjectLock.select(_frame!, p, zoom: _frameZoom);
     features = features.withSubject(
       subjectLock.trackable ? subjectLock.position : null,
       subjectLock.trackable ? 1 : 0,
@@ -674,6 +836,7 @@ class CameraCoach extends ChangeNotifier {
           subjectLock.position,
           subjectLocked: true,
           tracking: subjectLock.tracking,
+          zoom: _frameZoom,
         ),
       );
       if (disposed ||
@@ -732,6 +895,7 @@ class CameraCoach extends ChangeNotifier {
 
   void resetFraming() {
     _generation++;
+    _pendingSelection = null;
     phase = CapturePhase.framing;
     plans = [];
     plan = null;
@@ -783,6 +947,7 @@ class CameraCoach extends ChangeNotifier {
   Future<void> takePhoto({bool overrideGuidance = false}) async {
     if (phase == CapturePhase.capturing ||
         phase == CapturePhase.captured ||
+        zoom.isAdjusting ||
         !initialized) {
       return;
     }
@@ -795,6 +960,7 @@ class CameraCoach extends ChangeNotifier {
     _generation++;
     final session = _session;
     final filter = _photoFilter;
+    _pendingSelection = null;
     phase = CapturePhase.capturing;
     saved = false;
     saveError = null;
@@ -913,6 +1079,8 @@ class CameraCoach extends ChangeNotifier {
   Future<void> suspend() async {
     _session++;
     _generation++;
+    _pendingSelection = null;
+    zoom.reset();
     initialized = false;
     _demoTimer?.cancel();
     await _previewSubscription?.cancel();
@@ -961,6 +1129,7 @@ class CameraCoach extends ChangeNotifier {
     _frame = null;
     _pendingFrame = null;
     _demoPixels = null;
+    _pendingSelection = null;
     subjectLock.reset();
     beforeSave = null;
     _session++;
@@ -971,6 +1140,7 @@ class CameraCoach extends ChangeNotifier {
     _levelSubscription?.cancel();
     camera?.dispose();
     demoImage?.dispose();
+    zoom.dispose();
     super.dispose();
   }
 }

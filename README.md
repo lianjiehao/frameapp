@@ -10,11 +10,11 @@
 
 | 平台 | 下载入口 |
 | --- | --- |
-| Android | 待补充 APK 下载链接 |
+| Android | [下载 APK](https://www.pgyer.com/9baefc9fec2a3373015d549f23b8eef6) |
 | iOS | 待补充安装或 TestFlight 链接 |
 
 <!-- Replace these placeholders only when a verified build is available. -->
-暂无可用下载链接；可按下方步骤自行运行。
+iOS 暂无可用下载链接；也可按下方步骤自行运行。
 
 ## 快速开始
 
