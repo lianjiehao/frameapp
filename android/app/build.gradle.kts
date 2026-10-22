@@ -55,6 +55,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Keep local debug installs separate from the published package.
+            applicationIdSuffix = ".debug"
+        }
         release {
             // Never use the debug keystore for a distributable build.
             if (hasReleaseSigning) {
