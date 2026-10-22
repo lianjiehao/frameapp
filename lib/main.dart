@@ -12,6 +12,7 @@ import 'services/permissions.dart';
 import 'ui/guides.dart';
 import 'ui/privacy_flow.dart';
 import 'ui/photo_filters.dart';
+import 'ui/camera_zoom_dial.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -427,6 +428,26 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
     );
   }
 
+  bool get _needsSubjectAttention =>
+      coach.subjectLock.state == SubjectState.lost ||
+      coach.subjectLock.state == SubjectState.needsDetail;
+
+  String get _viewfinderSubjectLabel => switch (coach.phase) {
+    CapturePhase.framing when coach.selectingSubject => '正在重新锁定主体',
+    CapturePhase.framing => switch (coach.subjectLock.state) {
+      SubjectState.unselected => coach.subjectHint,
+      SubjectState.tracking => '主体已锁定',
+      SubjectState.lost => '主体跟丢了，请点一下重新锁定',
+      SubjectState.needsDetail => '主体轮廓不清晰，请重新点选',
+    },
+    CapturePhase.analyzing => '正在分析构图',
+    CapturePhase.recommending => '已生成构图建议',
+    CapturePhase.guiding => coach.alignment.message,
+    CapturePhase.ready => '可以拍照了',
+    CapturePhase.capturing => '正在拍摄',
+    CapturePhase.captured => coach.subjectLabel,
+  };
+
   Widget _viewfinder() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 10),
     child: Center(
@@ -438,12 +459,14 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
             builder: (context, bounds) => GestureDetector(
               key: const Key('viewfinder'),
               behavior: HitTestBehavior.opaque,
-              onTapUp: (d) => coach.selectSubject(
-                Point2(
-                  d.localPosition.dx / bounds.maxWidth,
-                  d.localPosition.dy / bounds.maxHeight,
-                ),
-              ),
+              onTapUp: (d) {
+                coach.selectSubject(
+                  Point2(
+                    d.localPosition.dx / bounds.maxWidth,
+                    d.localPosition.dy / bounds.maxHeight,
+                  ),
+                );
+              },
               onPanUpdate: coach.isDemo
                   ? (d) => coach.panDemo(
                       Offset(
@@ -480,106 +503,51 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
                     ),
                   if (coach.phase != CapturePhase.captured)
                     IgnorePointer(child: _guideLayer()),
-                  Positioned(
-                    top: 13,
-                    left: 13,
-                    child: _glassLabel(coach.isDemo ? '练习照片 · 3:4' : '3:4'),
-                  ),
                   if (coach.phase != CapturePhase.captured)
                     Positioned(
                       top: 13,
+                      left: 13,
                       right: 13,
-                      child: _glassLabel(
-                        coach.subjectLabel,
-                        icon:
-                            coach.subjectLock.state == SubjectState.lost ||
-                                coach.subjectLock.state ==
-                                    SubjectState.needsDetail
-                            ? Icons.touch_app_outlined
-                            : Icons.center_focus_weak,
+                      child: Align(
+                        alignment: Alignment.topRight,
+                        child: _glassLabel(
+                          _viewfinderSubjectLabel,
+                          key: const Key('viewfinder-status'),
+                          icon: _needsSubjectAttention
+                              ? Icons.touch_app_outlined
+                              : coach.phase == CapturePhase.ready
+                              ? Icons.check_circle_outline
+                              : Icons.center_focus_weak,
+                        ),
                       ),
                     ),
-                  if (coach.initialized && coach.phase != CapturePhase.captured)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(16, 28, 16, 14),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: .55),
-                            ],
+                  if (coach.canZoom && coach.phase != CapturePhase.captured)
+                    Positioned.fill(
+                      child: ListenableBuilder(
+                        listenable: coach.zoom,
+                        builder: (context, _) => CameraZoomDial(
+                          range: coach.zoom.range,
+                          value: coach.zoom.value,
+                          onChanged: coach.requestZoom,
+                          onGestureStart: coach.beginZoomGesture,
+                          onGestureEnd: coach.endZoomGesture,
+                          bottomTrailing: _previewLevelIndicator(),
+                          onPreviewTap: (position) => coach.selectSubject(
+                            Point2(
+                              position.dx / bounds.maxWidth,
+                              position.dy / bounds.maxHeight,
+                            ),
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              coach.phase == CapturePhase.ready
-                                  ? Icons.check_circle
-                                  : coach.subjectLock.state ==
-                                            SubjectState.lost ||
-                                        coach.subjectLock.state ==
-                                            SubjectState.needsDetail
-                                  ? Icons.touch_app_outlined
-                                  : Icons.crop_free,
-                              size: 15,
-                              color: coach.phase == CapturePhase.ready
-                                  ? acid
-                                  : paper,
-                            ),
-                            const SizedBox(width: 7),
-                            Expanded(
-                              child: Text(
-                                coach.phase == CapturePhase.ready
-                                    ? '可以拍照了'
-                                    : coach.isDemo &&
-                                          coach.plan != null &&
-                                          coach.plan?.useHorizon != true &&
-                                          coach.subjectLock.state ==
-                                              SubjectState.tracking
-                                    ? '拖动画面，让绿圈中心进入选框'
-                                    : coach.subjectHint,
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Semantics(
-                              label:
-                                  '${coach.isDemo ? '练习水平仪' : '手机水平仪'}，${coach.level.label}',
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    coach.isDemo ? '练习水平仪' : '手机水平仪',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      color: paper.withValues(alpha: .65),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    coach.level.label,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color:
-                                          coach.level.blocksAlignment ||
-                                              coach.level.needsLeveling
-                                          ? const Color(0xFFF4B66F)
-                                          : acid,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
+                    ),
+                  if (coach.initialized &&
+                      !coach.canZoom &&
+                      coach.phase != CapturePhase.captured)
+                    Positioned(
+                      bottom: 13,
+                      right: 13,
+                      child: IgnorePointer(child: _previewLevelIndicator()),
                     ),
                   if (coach.phase == CapturePhase.analyzing ||
                       coach.phase == CapturePhase.capturing)
@@ -604,6 +572,47 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       ),
     ),
   );
+
+  Widget _previewLevelIndicator() {
+    final level = coach.level;
+    final name = coach.isDemo ? '练习水平仪' : '手机水平仪';
+    final text =
+        level.available &&
+            !level.waiting &&
+            !level.moving &&
+            level.elevation != null
+        ? '${level.label} ${level.elevation!.abs().toStringAsFixed(1)}°'
+        : level.label;
+    return Semantics(
+      key: const Key('preview-level'),
+      label: '$name，$text',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 7),
+        child: ExcludeSemantics(
+          child: Text(
+            text,
+            key: const Key('preview-level-value'),
+            maxLines: 1,
+            softWrap: false,
+            style: const TextStyle(
+              fontSize: 10,
+              height: 1.2,
+              fontWeight: FontWeight.w500,
+              fontFeatures: [FontFeature.tabularFigures()],
+              color: Color(0xBFF2F0E7),
+              shadows: [
+                Shadow(
+                  color: Color(0x99000000),
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _guideLayer() {
     Widget paint(Point2? position) => CustomPaint(
@@ -767,22 +776,44 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
       children: [
         Row(
           children: [
-            _pill('构图建议', color: acid),
-            const Spacer(),
-            _filterButton(),
-            TextButton(
-              onPressed: _showPlans,
-              child: const Text('全部构图 ↗', style: TextStyle(fontSize: 11)),
+            Expanded(
+              child: Row(
+                key: const Key('composition-title-row'),
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Flexible(
+                    child: Text(
+                      selected.kind.title,
+                      key: const Key('selected-composition-title'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 25,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    key: const Key('open-all-plans'),
+                    onPressed: _showPlans,
+                    style: TextButton.styleFrom(
+                      foregroundColor: acid,
+                      minimumSize: Size.zero,
+                      padding: EdgeInsets.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      '全部构图 ↗',
+                      key: Key('open-all-plans-label'),
+                      style: TextStyle(fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-        Row(
-          children: [
-            Text(
-              selected.kind.title,
-              style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w500),
-            ),
-            const Spacer(),
+            const SizedBox(width: 10),
             _suitabilityScore(selected, key: const Key('selected-suitability')),
           ],
         ),
@@ -905,6 +936,14 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
     );
   }
 
+  String get _guidanceHeadline => switch (coach.alignment.message) {
+    '稳住手机，等待画面恢复' => '等待画面',
+    '正在重新锁定主体' => '重新锁定中',
+    '重新点一下主体' || '请重新点选主体，再调整构图' => '重新点选',
+    '倍率已更新，等待主体重新跟踪' => '重新跟踪中',
+    final message => message.split('，').first,
+  };
+
   Widget _guidingControls() {
     final ready = coach.phase == CapturePhase.ready,
         capture = coach.phase == CapturePhase.capturing;
@@ -921,9 +960,15 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                capture ? '正在拍照…' : coach.alignment.message,
+                capture ? '正在拍照…' : _guidanceHeadline,
+                key: const Key('guidance-headline'),
+                semanticsLabel: capture ? '正在拍照…' : coach.alignment.message,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 14,
+                  height: 1.4,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1153,7 +1198,8 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
     ),
     child: Text(text, style: TextStyle(fontSize: 10, color: color)),
   );
-  Widget _glassLabel(String text, {IconData? icon}) => Container(
+  Widget _glassLabel(String text, {Key? key, IconData? icon}) => Container(
+    key: key,
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
     decoration: BoxDecoration(
       color: ink.withValues(alpha: .52),
@@ -1166,7 +1212,14 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
           Icon(icon, size: 12, color: paper),
           const SizedBox(width: 5),
         ],
-        Text(text, style: const TextStyle(fontSize: 10)),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 10),
+          ),
+        ),
       ],
     ),
   );

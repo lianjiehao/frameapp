@@ -21,7 +21,8 @@ aapt = max(tools, key=lambda path: tuple(int(part) if part.isdigit() else 0
 permissions = subprocess.check_output([str(aapt), 'dump', 'permissions', str(apk)], text=True)
 allowed = {'android.permission.INTERNET', 'android.permission.CAMERA',
            'android.permission.WRITE_EXTERNAL_STORAGE', 'android.permission.ACCESS_NETWORK_STATE',
-           'studio.framecoach.framecoach.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}
+           'studio.framecoach.framecoach.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION',
+           'studio.framecoach.framecoach.debug.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}
 for line in permissions.splitlines():
     if line.startswith('uses-permission:'):
         name = line.split("name='", 1)[1].split("'", 1)[0]
