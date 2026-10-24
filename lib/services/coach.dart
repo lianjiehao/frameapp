@@ -85,6 +85,11 @@ class CameraCoach extends ChangeNotifier {
       disposed = false,
       _busy = false,
       _opening = false;
+  bool get canExitDemo =>
+      !disposed &&
+      isDemo &&
+      !kIsWeb &&
+      !const bool.fromEnvironment('DEMO_MODE');
   String? error, saveError;
   CapturePhase phase = CapturePhase.framing;
   CameraController? camera;
@@ -909,9 +914,19 @@ class CameraCoach extends ChangeNotifier {
 
   Future<void> enableDemo() async {
     await suspend();
+    if (disposed) return;
     isDemo = true;
     resetFraming();
     await initialize();
+  }
+
+  Future<void> exitDemo() async {
+    if (!canExitDemo) return;
+    await suspend();
+    if (disposed) return;
+    isDemo = false;
+    resetFraming();
+    // CameraPage must check consent and permissions before reopening the camera.
   }
 
   Future<void> switchCamera() async {

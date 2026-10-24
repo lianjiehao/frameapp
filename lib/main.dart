@@ -13,6 +13,7 @@ import 'ui/guides.dart';
 import 'ui/privacy_flow.dart';
 import 'ui/photo_filters.dart';
 import 'ui/camera_zoom_dial.dart';
+import 'ui/camera_help.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,6 +86,7 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
   late final CameraCoach coach;
   late final AppPermissions permissions;
   bool _openingCamera = false;
+  bool _changingMode = false;
   bool _infoPageOpen = false;
   bool get _mobile =>
       !kIsWeb &&
@@ -182,6 +184,21 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
   void _resetFraming() {
     coach.resetFraming();
     if (!coach.initialized) unawaited(_startCamera());
+  }
+
+  Future<void> _setDemoMode(bool enabled) async {
+    if (_changingMode || coach.isDemo == enabled) return;
+    setState(() => _changingMode = true);
+    try {
+      if (enabled) {
+        await coach.enableDemo();
+      } else {
+        await coach.exitDemo();
+        await _startCamera();
+      }
+    } finally {
+      if (mounted) setState(() => _changingMode = false);
+    }
   }
 
   Future<void> _showPrivacy() async {
@@ -358,25 +375,39 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
           ),
           if (coach.isDemo && bounds.maxWidth >= 330)
             _pill('练习模式', color: acid),
-          IconButton(
-            tooltip: '切换镜头',
-            onPressed: _canUseCameraControls ? coach.switchCamera : null,
-            constraints: const BoxConstraints.tightFor(width: 38, height: 38),
-            padding: EdgeInsets.zero,
-            icon: const Icon(Icons.cameraswitch_outlined, size: 20),
-          ),
-          IconButton(
-            tooltip: '闪光灯',
-            onPressed: _canUseCameraControls ? coach.toggleFlash : null,
-            icon: Icon(
-              coach.flash == FlashMode.off
-                  ? Icons.flash_off
-                  : coach.flash == FlashMode.auto
-                  ? Icons.flash_auto
-                  : Icons.flash_on,
-              size: 20,
+          if (coach.canExitDemo)
+            TextButton.icon(
+              key: const Key('exit-demo'),
+              onPressed:
+                  _changingMode ||
+                      coach.phase == CapturePhase.capturing ||
+                      coach.saving
+                  ? null
+                  : () => _setDemoMode(false),
+              icon: const Icon(Icons.arrow_back, size: 16),
+              label: const Text('退出练习', style: TextStyle(fontSize: 12)),
             ),
-          ),
+          if (!coach.isDemo) ...[
+            IconButton(
+              tooltip: '切换镜头',
+              onPressed: _canUseCameraControls ? coach.switchCamera : null,
+              constraints: const BoxConstraints.tightFor(width: 38, height: 38),
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.cameraswitch_outlined, size: 20),
+            ),
+            IconButton(
+              tooltip: '闪光灯',
+              onPressed: _canUseCameraControls ? coach.toggleFlash : null,
+              icon: Icon(
+                coach.flash == FlashMode.off
+                    ? Icons.flash_off
+                    : coach.flash == FlashMode.auto
+                    ? Icons.flash_auto
+                    : Icons.flash_on,
+                size: 20,
+              ),
+            ),
+          ],
           IconButton(
             tooltip: '拍照指南',
             onPressed: _showHelp,
@@ -678,7 +709,10 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
             onPressed: permissions.backend.openSettings,
             child: const Text('系统权限设置'),
           ),
-        TextButton(onPressed: coach.enableDemo, child: const Text('试试练习模式')),
+        TextButton(
+          onPressed: () => _setDemoMode(true),
+          child: const Text('试试练习模式'),
+        ),
       ],
     ],
   );
@@ -1306,56 +1340,22 @@ class _CameraPageState extends State<CameraPage> with WidgetsBindingObserver {
     context: context,
     backgroundColor: const Color(0xFF1A201A),
     showDragHandle: true,
-    builder: (context) => SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(26, 0, 26, 26),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text('拍照指南', style: TextStyle(fontSize: 24)),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      unawaited(_showPrivacy());
-                    },
-                    icon: const Icon(Icons.privacy_tip_outlined, size: 16),
-                    label: const Text('隐私与权限', style: TextStyle(fontSize: 12)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                '1. 点选想拍的主体，点击「推荐构图」。\n2. 选好构图，点击「开始调整构图」。\n3. 按提示移动手机，出现「可以拍照了」后点击快门。',
-                style: TextStyle(fontSize: 13, height: 2, color: paper),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                '白框跟随主体，让绿圈中心留在框内一秒。\n提示「主体跟丢了」时，重新点一下主体。\n右下角的角度接近 0°，画面更水平。',
-                style: TextStyle(color: paper, fontSize: 12, height: 1.8),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                '想保留当前画面？也可以点击「直接拍照」。',
-                style: TextStyle(color: acid, fontSize: 11),
-              ),
-              if (!coach.isDemo)
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    coach.enableDemo();
-                  },
-                  child: const Text('试试练习模式'),
-                ),
-            ],
-          ),
-        ),
-      ),
+    isScrollControlled: true,
+    constraints: BoxConstraints(
+      maxHeight: MediaQuery.sizeOf(context).height * .9,
+      maxWidth: 560,
+    ),
+    builder: (context) => CameraHelpSheet(
+      onPrivacy: () {
+        Navigator.pop(context);
+        unawaited(_showPrivacy());
+      },
+      onPractice: coach.isDemo
+          ? null
+          : () {
+              Navigator.pop(context);
+              unawaited(_setDemoMode(true));
+            },
     ),
   );
 }
