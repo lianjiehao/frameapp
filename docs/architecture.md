@@ -21,6 +21,10 @@ Image input
 
 `CapturePhase` in `coach.dart` is `framing → analyzing → recommending → guiding → ready → capturing → captured`. Direct capture, reset, retry, suspension and lost tracking branch from this flow; inspect the controller before changing transitions. Native camera sampling and analysis share one `compute` job, with requests throttled to about 120 ms and only the latest pending frame retained with its original time. The camera crop is area-averaged before reduction to 192×256 so fine foliage does not turn into aliasing noise during small movements. The controller publishes the sampled frame together with its analysis; an expired result cannot restore a live lock or shutter readiness.
 
+On native builds, practice mode opened from Help or the camera error view has an Exit practice button in the header. Exiting cancels practice sampling, clears the selection and composition guidance, then returns through the existing consent and camera-permission checks. A previous permission rejection still requires the explicit camera retry. Web and `DEMO_MODE=true` builds remain practice-only. `practice_mode_test.dart` covers entering from Help, exiting during guidance, cleanup, permission rejection and compact headers; native camera restoration still needs device verification.
+
+`ui/camera_help.dart` presents the guide as three numbered steps, followed by quieter shooting tips. Its full-width practice button sits in a separate footer below the scrollable content, keeping it reachable on short screens and with larger text. The privacy shortcut stays in the header; practice mode hides the practice entry.
+
 ## Selected-subject tracking
 
 When analysis is stale, an explicit preview tap queues a new selection instead of being ignored. The same latest-frame worker services it by sampling fresh pixels before attempting to track the old subject. Only the latest tap and latest pending frame survive; expired samples cannot seed a lock, and obsolete worker results or errors cannot replace the new selection. Reset, zoom adjustment, capture and suspension cancel the queued tap. A recovered selection starts a new stability hold.
