@@ -546,6 +546,13 @@ void main() {
       for (final tooltip in ['切换镜头', '闪光灯']) {
         expect(find.byTooltip(tooltip), findsNothing);
       }
+      expect(find.byIcon(Icons.tune), findsOneWidget);
+      await tester.tap(find.byKey(const Key('camera-more')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('menu-help')), findsOneWidget);
+      expect(find.byKey(const Key('menu-flash')), findsNothing);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
       expect(
         tester.getRect(find.byKey(const Key('exit-demo'))).bottom,
         lessThan(previewRect.top),

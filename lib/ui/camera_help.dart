@@ -43,6 +43,17 @@ class CameraHelpSheet extends StatelessWidget {
                 const SizedBox(height: 20),
                 _step('03', '调整并拍照', '按提示移动手机，出现「可以拍照了」后点击快门。'),
                 const SizedBox(height: 24),
+                const Text(
+                  '姿势拍摄',
+                  style: TextStyle(fontSize: 15, color: paper),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  '切换「摆姿模式」，选好参考图后直接对照摆姿。\n'
+                  '摆好姿势即可按快门。透明度调到 0 可隐藏参考图，「重新开始」可重新选图。参考图不会写入照片。',
+                  style: TextStyle(fontSize: 12, height: 1.7, color: muted),
+                ),
+                const SizedBox(height: 24),
                 DecoratedBox(
                   decoration: BoxDecoration(
                     color: paper.withValues(alpha: .035),
@@ -87,7 +98,7 @@ class CameraHelpSheet extends StatelessWidget {
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '想保留当前画面？也可以点击「直接拍照」。',
+                        '构图尚未对齐时，也可以点击快门下方「直接拍照」。',
                         style: TextStyle(
                           color: muted,
                           fontSize: 11,

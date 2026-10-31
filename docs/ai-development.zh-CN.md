@@ -32,7 +32,3 @@
 助手先运行相关检查，预览文件、提交说明、推送仓库／分支和将推送的提交，**确认后才暂存、commit 和 push**。忽略文件和敏感资料不进入提交，发现敏感文件须先处理。
 
 也可使用 Codex 的 `$frame-commit`、Claude Code 的 [`/frame-commit`](../.claude/commands/frame-commit.md) 或 Cursor 识别到的同名 skill。未识别时，直接要求读取上述 skill 文件。
-
-## REA 功能研究
-
-可选的 [frame-rea](../.agents/skills/frame-rea/SKILL.md) 用于研究自有或已获授权的软件功能。安装、调用与版权边界见 [REA 指南](rea.zh-CN.md)。

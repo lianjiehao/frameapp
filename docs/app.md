@@ -15,6 +15,10 @@ Screenshots show the Chinese UI. The app itself is not yet localized into Englis
 
 ## What it offers
 
+Pose fits the selected reference to the preview height and centers it horizontally. After selection, the main shutter captures immediately without body detection, an alignment hold or a separate Direct capture button. The upper row has two separate bordered areas: a reference thumbnail with a switch icon, and opacity with mirroring. There is no eye button; zero opacity hides the overlay. Restart, the centered shutter and a latest-photo icon share the lower row. Filters remain on the initial page and move into More after selecting a reference. Restart clears only the selection. The initial Pose page shares Composition’s footer spacing, filter display and rear-camera zoom controls. References never enter the photo. Composition keeps its one-second alignment requirement; Direct capture appears below the shutter only while not ready, and the right side shows the photo icon on a real camera or Auto-align in practice mode.
+
+Composition remains the cold-launch default. Favorites and recent imports stay in private storage, up to 20 images; deletion preserves originals. Retaking keeps the selected reference. See [pose behavior and limits](pose.md).
+
 - Six composition options: rule of thirds, centered, symmetry, golden ratio, leading lines and negative space.
 - Subject tracking, target markers and direction hints; an in-app photo guide explains the workflow.
 - Front/rear camera switching, flash, direct capture and a preview of the most recent shot.

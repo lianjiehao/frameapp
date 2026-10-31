@@ -30,6 +30,8 @@
 	<string>用于取景和拍照，并提供构图引导。</string>
 	<key>NSMotionUsageDescription</key>
 	<string>帮助你扶正画面，避免照片倾斜。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>仅在你选择参考图时读取选中的图片，用于本机取景叠加。</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>将你拍摄的照片保存到系统相册。</string>
 	<key>UIApplicationSceneManifest</key>

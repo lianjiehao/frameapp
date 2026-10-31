@@ -63,7 +63,7 @@ class _PrivacyGateState extends State<PrivacyGate> {
                   const SizedBox(height: 20),
                   const Text(
                     '运营者：$policyOperator。\n\n'
-                    '• 相机画面只在手机内用于构图和主体跟踪，不上传照片。\n'
+                    '• 相机画面只在手机内用于构图和主体跟踪；参考图仅在本机叠加，不上传照片。\n'
                     '• 相机和保存照片权限会分别说明、按需申请，你可以拒绝。\n\n'
                     '请阅读以下说明。同意后才会开启取景；你可以随时撤回同意。',
                     style: TextStyle(height: 1.8, fontSize: 14),

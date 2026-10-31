@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
@@ -9,11 +10,14 @@ import 'package:framecoach/core/vision.dart';
 import 'package:framecoach/services/camera_zoom.dart';
 import 'package:framecoach/services/coach.dart';
 import 'package:framecoach/services/privacy.dart';
+import 'package:framecoach/services/references.dart';
 import 'package:framecoach/ui/camera_zoom_dial.dart';
 
 import 'tracking_test.dart' show expected, treeView;
 import 'privacy_test.dart' show MemoryStore, TestPermissions;
 import 'widget_test.dart' show loadAppFonts, savePreview;
+import 'reference_test.dart'
+    show MemoryReferences, expectPoseStep, exportReferencePreview;
 
 void main() {
   group('CameraZoomRange', () {
@@ -789,6 +793,197 @@ void main() {
   );
 
   testWidgets(
+    'selected references immediately allow camera zoom without moving the overlay or preview',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final coach = _LensPreviewCoach();
+      final consent = PrivacyConsent(
+        store: MemoryStore(PolicyDocument.revision),
+      );
+      final references = ReferenceLibrary(store: MemoryReferences());
+      await tester.runAsync(() async {
+        await consent.load();
+        references.selectTemplate(
+          'zoom-reference',
+          await File('test/fixtures/pose_person.png').readAsBytes(),
+        );
+        if (const bool.fromEnvironment('EXPORT_REFERENCE_PREVIEWS')) {
+          await loadAppFonts();
+        }
+      });
+      coach.setShootingMode(ShootingMode.pose);
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: const Key('reference-preview'),
+          child: FrameApp(
+            coach: coach,
+            consent: consent,
+            references: references,
+            permissionBackend: TestPermissions()..camera = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        final context = tester.element(find.byKey(const Key('viewfinder')));
+        await precacheImage(MemoryImage(references.selected!.bytes), context);
+        if (!context.mounted) return;
+        await precacheImage(
+          tester
+              .widget<Image>(find.byKey(const Key('reference-thumbnail')))
+              .image,
+          context,
+        );
+      });
+      await tester.pumpAndSettle();
+      expect(coach.canZoom, isTrue);
+      expectPoseStep(tester, 1);
+      expect(find.byType(CameraZoomDial), findsOneWidget);
+      expect(find.byKey(const Key('hide-reference')), findsNothing);
+      expect(find.byKey(const Key('shutter')), findsOneWidget);
+      expect(find.byKey(const Key('open-photo')), findsOneWidget);
+      expect(find.byKey(const Key('start-posing')), findsNothing);
+      final previewRect = tester.getRect(find.byKey(const Key('viewfinder')));
+      final footer = find.byKey(const Key('camera-controls'));
+      final footerRect = tester.getRect(footer);
+      expect(footerRect.height, lessThan(192));
+      expect(footerRect.top, greaterThanOrEqualTo(previewRect.bottom));
+      final zoomBefore = coach.zoom.value;
+      final toolbar = find.byKey(const Key('reference-adjustment-bar'));
+      expect(
+        tester.getRect(toolbar).top,
+        greaterThanOrEqualTo(previewRect.bottom),
+      );
+      Future<void> pinchPreview({VoidCallback? whilePinching}) async {
+        final center = tester.getCenter(find.byKey(const Key('viewfinder')));
+        final left = await tester.startGesture(
+          center - const Offset(24, 0),
+          pointer: 1,
+        );
+        final right = await tester.startGesture(
+          center + const Offset(24, 0),
+          pointer: 2,
+        );
+        await tester.pump();
+        await left.moveTo(center - const Offset(36, 0));
+        await right.moveTo(center + const Offset(36, 0));
+        await tester.pump();
+        await left.moveTo(center - const Offset(54, 0));
+        await right.moveTo(center + const Offset(54, 0));
+        await tester.pump();
+        whilePinching?.call();
+        await right.up();
+        await left.up();
+        await tester.pumpAndSettle();
+      }
+
+      await tester.tap(find.byKey(const Key('mirror-reference')));
+      await tester.pump();
+      expect(references.mirror, isTrue);
+      final opacityBefore = references.opacity;
+      await tester.drag(
+        find.byKey(const Key('reference-opacity')),
+        const Offset(20, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(references.opacity, greaterThan(opacityBefore));
+      expect(coach.zoom.value, zoomBefore);
+      expect(coach.zoom.isAdjusting, isFalse);
+      expect(coach.appliedZoom, isEmpty);
+      Object referenceSettings() => (references.mirror, references.opacity);
+
+      final preparedReference = referenceSettings();
+      expect(find.byKey(const Key('reset-reference')), findsNothing);
+      expectPoseStep(tester, 1);
+      expect(find.byType(CameraZoomDial), findsOneWidget);
+      expect(find.byKey(const Key('reference-opacity')), findsOneWidget);
+      expect(find.byKey(const Key('open-photo')), findsOneWidget);
+      expect(find.byKey(const Key('open-references')), findsOneWidget);
+      expect(tester.getRect(find.byKey(const Key('viewfinder'))), previewRect);
+      expect(tester.getRect(footer), footerRect);
+      expect(
+        tester.getRect(find.byType(CameraZoomDial)).bottom,
+        lessThanOrEqualTo(footerRect.top),
+      );
+
+      // Exercise the production CameraCoach request path through an injected
+      // controller setter; reference-image changes must never reach this path.
+      await tester.tap(find.byKey(const Key('zoom-quick-2.0')));
+      await tester.pumpAndSettle();
+      expect(coach.appliedZoom, [2]);
+      expect(coach.zoom.value, 2);
+      expect(coach.zoom.lastRequestFailed, isFalse);
+      expect(referenceSettings(), preparedReference);
+      expect(coach.canCapturePose, isTrue);
+      await exportReferencePreview(tester, 'pose-camera-zoom');
+      await pinchPreview(
+        whilePinching: () {
+          expect(coach.zoom.isAdjusting, isTrue);
+          expect(coach.canCapturePose, isFalse);
+        },
+      );
+      expect(coach.zoom.value, greaterThan(2));
+      expect(coach.appliedZoom.last, coach.zoom.value);
+      expect(coach.zoom.isAdjusting, isFalse);
+      expect(coach.canCapturePose, isTrue);
+      expect(referenceSettings(), preparedReference);
+
+      final zoomAfterPinch = coach.zoom.value;
+      final bar = find.byKey(const Key('camera-zoom-bar'));
+      final finger = await tester.startGesture(tester.getCenter(bar));
+      await finger.moveBy(const Offset(-40, 0));
+      await tester.pump();
+      await finger.moveBy(const Offset(-20, 0));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 180));
+      expect(find.byKey(const Key('camera-zoom-arc')), findsOneWidget);
+      expect(coach.zoom.value, greaterThan(zoomAfterPinch));
+      expect(coach.canCapturePose, isFalse);
+      await finger.up();
+      await tester.pump();
+      // The wheel's one-second idle deadline should finish before navigation.
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(coach.appliedZoom.last, coach.zoom.value);
+      expect(coach.zoom.isAdjusting, isFalse);
+      expect(coach.canCapturePose, isTrue);
+      expect(referenceSettings(), preparedReference);
+
+      await tester.tap(find.byKey(const Key('open-references')));
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expectPoseStep(tester, 1);
+      expect(references.selected, isNotNull);
+      expect(referenceSettings(), preparedReference);
+      expect(find.byType(CameraZoomDial), findsOneWidget);
+      expect(tester.getRect(find.byKey(const Key('viewfinder'))), previewRect);
+      expect(tester.getRect(footer), footerRect);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expectPoseStep(tester, 0);
+      expect(references.selected, isNull);
+      expect(find.byKey(const Key('pose-select-controls')), findsOneWidget);
+      expect(find.byType(CameraZoomDial), findsOneWidget);
+      expect(find.byKey(const Key('shutter')), findsNothing);
+      expect(find.byKey(const Key('open-filters')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('zoom-quick-2.0')));
+      await tester.pumpAndSettle();
+      expect(coach.zoom.value, 2);
+      await pinchPreview();
+      expect(coach.zoom.value, greaterThan(2));
+      expect(references.selected, isNull);
+      await exportReferencePreview(tester, 'pose-home-zoom');
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      consent.dispose();
+    },
+  );
+
+  testWidgets(
     'releasing a small zoom change cannot roll the visible number back',
     (tester) async {
       final zoom = CameraZoomState();
@@ -847,7 +1042,7 @@ void main() {
   );
 
   test(
-    'settled zoom invalidates old guidance and waits for the same subject',
+    'settled zoom keeps the recommendation step while refreshing the subject',
     () async {
       final frames = StreamController<GrayFrame>(sync: true);
       final coach = CameraCoach(demo: true, previewFrames: frames.stream);
@@ -870,6 +1065,8 @@ void main() {
       await coach.confirmScene();
       expect(coach.phase, CapturePhase.recommending);
       expect(coach.subjectLock.selected, true);
+      final selectedKind = coach.plans.last.kind;
+      coach.choosePlan(coach.plans.last);
 
       coach.zoom.configure(.6, 10);
       final settled = Completer<void>();
@@ -891,9 +1088,10 @@ void main() {
       await settled.future;
       coach.removeListener(zoomChanged);
 
-      expect(coach.phase, CapturePhase.framing);
-      expect(coach.plan, isNull);
-      expect(coach.plans, isEmpty);
+      expect(coach.phase, CapturePhase.recommending);
+      expect(coach.plan, isNotNull);
+      expect(coach.plan!.kind, selectedKind);
+      expect(coach.plans, isNotEmpty);
       expect(coach.subjectLock.state, SubjectState.lost);
       expect(coach.subjectLock.selected, true);
       expect(coach.features.subject, isNull);
@@ -901,7 +1099,10 @@ void main() {
 
       final recovered = Completer<void>();
       void trackingChanged() {
-        if (coach.canRecommend && !recovered.isCompleted) recovered.complete();
+        if (coach.subjectLock.state == SubjectState.tracking &&
+            !recovered.isCompleted) {
+          recovered.complete();
+        }
       }
 
       coach.addListener(trackingChanged);
@@ -909,12 +1110,50 @@ void main() {
       await recovered.future;
       coach.removeListener(trackingChanged);
       expect(coach.subjectLock.state, SubjectState.tracking);
-      expect(coach.canRecommend, true);
-      expect(
-        coach.subjectLock.position!.distanceTo(expected(zoom: 2)) * 256,
-        lessThan(2),
-      );
+      expect(coach.phase, CapturePhase.recommending);
+      expect(coach.plan, isNotNull);
+      expect(coach.plan!.kind, selectedKind);
+      expect(coach.plans, isNotEmpty);
+      expect(coach.canRecommend, false);
+      expect(coach.subjectLock.position, isNotNull);
       expect(coach.subjectLock.tracking!.zoom, 2);
+
+      coach.startGuidance();
+      expect(coach.phase, CapturePhase.guiding);
+      final guidanceSettled = Completer<void>();
+      void guidanceZoomChanged() {
+        if (!coach.zoom.isAdjusting && !guidanceSettled.isCompleted) {
+          guidanceSettled.complete();
+        }
+      }
+
+      coach.addListener(guidanceZoomChanged);
+      final guidanceApplied = Completer<void>();
+      coach.zoom.beginGesture();
+      coach.zoom.request(3, (_) => guidanceApplied.future);
+      expect(coach.phase, CapturePhase.guiding);
+      guidanceApplied.complete();
+      coach.zoom.endGesture();
+      await guidanceSettled.future;
+      coach.removeListener(guidanceZoomChanged);
+      expect(coach.phase, CapturePhase.guiding);
+      expect(coach.plan!.kind, selectedKind);
+
+      final guidanceRecovered = Completer<void>();
+      void guidanceTrackingChanged() {
+        if (coach.subjectLock.state == SubjectState.tracking &&
+            !guidanceRecovered.isCompleted) {
+          guidanceRecovered.complete();
+        }
+      }
+
+      coach.addListener(guidanceTrackingChanged);
+      frames.add(treeView(zoom: 3));
+      await guidanceRecovered.future;
+      coach.removeListener(guidanceTrackingChanged);
+      expect(coach.phase, isNot(CapturePhase.framing));
+      expect(coach.plan!.kind, selectedKind);
+      expect(coach.subjectLock.tracking!.zoom, 3);
       await frames.close();
     },
   );
@@ -923,20 +1162,20 @@ void main() {
 // CameraPage exercises its real lens gate without opening native camera I/O.
 class _LensPreviewCoach extends CameraCoach {
   _LensPreviewCoach() : super(demo: false);
+  final appliedZoom = <double>[];
 
   @override
   Future<void> initialize() => showLens(CameraLensDirection.back);
 
   Future<void> showLens(CameraLensDirection lens, {double maxZoom = 10}) async {
     final previous = camera;
-    camera = CameraController(
+    camera = _ZoomPreviewController(
       CameraDescription(
         name: lens.name,
         lensDirection: lens,
         sensorOrientation: 90,
       ),
-      ResolutionPreset.low,
-      enableAudio: false,
+      onZoom: appliedZoom.add,
     );
     initialized = true;
     // Even a stale adjustable range must not enable the front camera UI/API.
@@ -944,4 +1183,16 @@ class _LensPreviewCoach extends CameraCoach {
     notifyListeners();
     await previous?.dispose();
   }
+}
+
+// The camera remains uninitialized to avoid native preview I/O, while the
+// production CameraCoach.requestZoom path still calls its controller setter.
+class _ZoomPreviewController extends CameraController {
+  _ZoomPreviewController(CameraDescription description, {required this.onZoom})
+    : super(description, ResolutionPreset.low, enableAudio: false);
+
+  final ValueChanged<double> onZoom;
+
+  @override
+  Future<void> setZoomLevel(double zoom) async => onZoom(zoom);
 }
