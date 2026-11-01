@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:framecoach/core/vision.dart';
@@ -12,6 +13,136 @@ import 'tracking_test.dart' show expected, treeView;
 import 'widget_test.dart' show loadAppFonts, savePreview;
 
 void main() {
+  testWidgets('practice starts with only the composition mode entry', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final consent = PrivacyConsent(store: MemoryStore(PolicyDocument.revision));
+    final permissions = TestPermissions();
+    final coach = CameraCoach(demo: true, previewFrames: const Stream.empty());
+    await tester.runAsync(() async {
+      await consent.load();
+      await coach.initialize();
+      if (const bool.fromEnvironment('EXPORT_PREVIEW')) await loadAppFonts();
+    });
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: const Key('app-preview'),
+        child: FrameApp(
+          coach: coach,
+          consent: consent,
+          permissionBackend: permissions,
+        ),
+      ),
+    );
+    for (final (size, scale) in [
+      (const Size(390, 844), 1.0),
+      (const Size(320, 568), 1.4),
+    ]) {
+      tester.view.physicalSize = size;
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      await tester.pumpAndSettle();
+      expect(coach.shootingMode, ShootingMode.composition);
+      expect(find.byKey(const Key('mode-composition')), findsOneWidget);
+      expect(find.byKey(const Key('mode-pose')), findsNothing);
+      expect(find.text('摆姿模式'), findsNothing);
+      expect(find.byKey(const Key('composition-steps')), findsOneWidget);
+      expect(find.byKey(const Key('pose-steps')), findsNothing);
+      expect(find.byKey(const Key('open-references')), findsNothing);
+      expect(find.byKey(const Key('reference-overlay')), findsNothing);
+      expect(tester.takeException(), isNull);
+      if (const bool.fromEnvironment('EXPORT_PREVIEW')) {
+        await savePreview(
+          tester,
+          '/tmp/frame-practice-composition-${size.width.toInt()}-$scale.png',
+        );
+      }
+    }
+    expect(permissions.calls, 0);
+    expect(permissions.cameraRequests, 0);
+    await tester.pumpWidget(const SizedBox());
+    consent.dispose();
+  });
+
+  testWidgets('more menu exposes current flash and respects capture state', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.4;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final consent = PrivacyConsent(store: MemoryStore(PolicyDocument.revision));
+    final coach = _PracticeCoach(
+      frames: const Stream.empty(),
+      now: tester.binding.clock.now,
+    );
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: const Key('app-preview'),
+        child: FrameApp(
+          coach: coach,
+          consent: consent,
+          permissionBackend: TestPermissions()..camera = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(coach.initialized, isTrue);
+    expect(find.byTooltip('切换镜头'), findsOneWidget);
+    expect(find.byIcon(Icons.menu_rounded), findsOneWidget);
+    expect(find.byTooltip('闪光灯'), findsNothing);
+    expect(find.byTooltip('拍照指南'), findsNothing);
+    expect(find.byKey(const Key('menu-flash')), findsNothing);
+    for (final (label, next) in [
+      ('关闭', FlashMode.auto),
+      ('自动', FlashMode.always),
+      ('开启', FlashMode.off),
+    ]) {
+      await tester.tap(find.byKey(const Key('camera-more')));
+      await tester.pumpAndSettle();
+      expect(find.text('闪光灯 · $label'), findsOneWidget);
+      final item = find.byKey(const Key('menu-flash'));
+      expect(item.hitTestable(), findsOneWidget);
+      expect(find.byKey(const Key('menu-help')).hitTestable(), findsOneWidget);
+      if (const bool.fromEnvironment('EXPORT_PREVIEW') && label == '关闭') {
+        await tester.runAsync(loadAppFonts);
+        await tester.pumpAndSettle();
+        await savePreview(tester, 'artifacts/references/camera-more-320.png');
+      }
+      await tester.tap(item);
+      await tester.pumpAndSettle();
+      expect(coach.flash, next);
+      expect(item, findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+    expect(coach.flashChanges, 3);
+    coach.phase = CapturePhase.capturing;
+    coach.notifyListeners();
+    await tester.pump();
+    expect(
+      tester.widget<TextButton>(find.byKey(const Key('mode-pose'))).onPressed,
+      isNull,
+    );
+    await tester.tap(find.byKey(const Key('camera-more')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    final flash = find.byKey(const Key('menu-flash'));
+    expect(tester.widget<PopupMenuItem<dynamic>>(flash).enabled, isFalse);
+    await tester.tap(flash);
+    await tester.pump();
+    expect(coach.flashChanges, 3);
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpWidget(const SizedBox());
+    consent.dispose();
+  }, skip: const bool.fromEnvironment('DEMO_MODE'));
+
   for (final denied in [false, true]) {
     testWidgets(
       'help practice exits to ${denied ? 'permission retry' : 'camera'} and clears guidance',
@@ -42,7 +173,12 @@ void main() {
         await tester.pumpAndSettle();
         expect(coach.cameraStarts, 1);
         expect(find.byKey(const Key('exit-demo')), findsNothing);
-        await tester.tap(find.byTooltip('拍照指南'));
+        await tester.tap(find.byKey(const Key('mode-pose')));
+        await tester.pumpAndSettle();
+        expect(coach.isPose, isTrue);
+        await tester.tap(find.byKey(const Key('camera-more')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('menu-help')));
         await tester.pumpAndSettle();
         final practiceButton = find.byKey(const Key('help-practice'));
         final helpContent = find.byKey(const Key('help-content'));
@@ -102,6 +238,12 @@ void main() {
         expect(coach.isDemo, true);
         expect(coach.initialized, true);
         expect(frames.hasListener, true);
+        expect(coach.shootingMode, ShootingMode.composition);
+        expect(find.byKey(const Key('mode-composition')), findsOneWidget);
+        expect(find.byKey(const Key('mode-pose')), findsNothing);
+        expect(find.byKey(const Key('composition-steps')), findsOneWidget);
+        expect(find.byKey(const Key('pose-steps')), findsNothing);
+        expect(find.byKey(const Key('pose-import-hint')), findsNothing);
         expect(find.byType(BottomSheet), findsNothing);
         expect(find.byTooltip('切换镜头'), findsNothing);
         expect(find.byTooltip('闪光灯'), findsNothing);
@@ -169,7 +311,18 @@ void main() {
         expect(permissions.cameraRequests, 0);
         expect(exit, findsNothing);
         expect(find.byTooltip('切换镜头'), findsOneWidget);
-        expect(find.byTooltip('闪光灯'), findsOneWidget);
+        expect(
+          find.byKey(const Key('mode-pose')).hitTestable(),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const Key('camera-more')));
+        await tester.pumpAndSettle();
+        final flash = tester.widget<PopupMenuItem<dynamic>>(
+          find.byKey(const Key('menu-flash')),
+        );
+        expect(flash.enabled, !denied);
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
         if (denied) {
           expect(find.text('重新开启相机'), findsOneWidget);
           expect(find.text('试试练习模式'), findsOneWidget);
@@ -208,7 +361,19 @@ class _PracticeCoach extends CameraCoach {
     : super(demo: false, previewFrames: frames);
 
   int cameraStarts = 0;
+  int flashChanges = 0;
   final practiceLoaded = Completer<void>();
+
+  @override
+  Future<void> toggleFlash() async {
+    flashChanges++;
+    flash = switch (flash) {
+      FlashMode.off => FlashMode.auto,
+      FlashMode.auto => FlashMode.always,
+      _ => FlashMode.off,
+    };
+    notifyListeners();
+  }
 
   @override
   Future<void> initialize() async {

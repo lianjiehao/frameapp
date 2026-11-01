@@ -3,6 +3,42 @@ import '../core/photo_filter.dart';
 import '../services/coach.dart';
 import 'guides.dart';
 
+class PhotoFilterIcon extends StatelessWidget {
+  const PhotoFilterIcon({super.key});
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: 15,
+    child: CustomPaint(
+      painter: _FilterIconPainter(IconTheme.of(context).color ?? paper),
+    ),
+  );
+}
+
+class _FilterIconPainter extends CustomPainter {
+  const _FilterIconPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1;
+    for (final center in const [
+      Offset(5, 5),
+      Offset(10, 5),
+      Offset(7.5, 9.5),
+    ]) {
+      canvas.drawCircle(center, 3.6, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FilterIconPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
 extension PhotoStyleLabel on PhotoStyle {
   String get label => switch (this) {
     PhotoStyle.original => '原图',

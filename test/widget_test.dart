@@ -641,6 +641,10 @@ void main() {
       await select(const Point2(.5, .5));
       expect(coach.subjectLock.state, SubjectState.needsDetail);
       expect(enabled(), false);
+      expect(coach.error, isNull);
+      expect(find.text('请点在主体清晰的轮廓上。'), findsNothing);
+      expect(find.text('主体轮廓不清晰，请重新点选'), findsOneWidget);
+      expect(find.text('点在主体清晰的轮廓上，锁定后再推荐。'), findsOneWidget);
       await coach.confirmScene();
       expect(coach.phase, CapturePhase.framing);
       expect(coach.plans, isEmpty);
@@ -756,6 +760,111 @@ void main() {
       unawaited(frames.close());
       unawaited(sensors.close());
       await tester.pump();
+    },
+  );
+  testWidgets(
+    'ready composition hides optional advice without reserving footer space',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final coach = CameraCoach(
+        demo: true,
+        previewFrames: const Stream.empty(),
+        now: () => DateTime(2026, 10, 25),
+      );
+      await tester.runAsync(coach.initialize);
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: const Key('app-preview'),
+          child: FrameApp(coach: coach, permissionBackend: TestPermissions()),
+        ),
+      );
+      if (const bool.fromEnvironment('EXPORT_PREVIEW')) {
+        await tester.runAsync(loadAppFonts);
+      }
+      for (final (width, scale) in [(390.0, 1.0), (320.0, 1.4), (430.0, 1.4)]) {
+        tester.view.physicalSize = Size(width, 844);
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        coach.choosePlan(
+          const CompositionPlan(
+            CompositionKind.thirds,
+            .8,
+            Point2(1 / 3, 1 / 3),
+            .5,
+            '',
+          ),
+        );
+        coach.phase = CapturePhase.guiding;
+        coach.alignment = const AlignmentResult(
+          false,
+          .5,
+          .8,
+          '已对齐，保持在框内…',
+          true,
+        );
+        coach.notifyListeners();
+        await tester.pumpAndSettle();
+        final viewfinder = find.byKey(const Key('viewfinder'));
+        final footer = find.byKey(const Key('camera-controls'));
+        final shutter = find.byKey(const Key('shutter'));
+        final direct = find.byKey(const Key('composition-direct-capture'));
+        expect(
+          tester.getRect(direct).top,
+          greaterThan(tester.getRect(shutter).bottom),
+        );
+        expect(
+          tester.getRect(direct).center.dx,
+          tester.getRect(shutter).center.dx,
+        );
+        final left = tester.getRect(find.text('重新取景'));
+        final right = tester.getRect(find.byKey(const Key('demo-align')));
+        expect(left.center.dy, tester.getRect(shutter).center.dy);
+        expect(right.center.dy, tester.getRect(shutter).center.dy);
+        Rect? readyPreview, readyFooter, readyShutter;
+        for (final advice in [
+          null,
+          '手机转得更水平，画面会更稳',
+          '主体已对齐，稍微调整手机角度可让画面更对称',
+          '也可以换个角度，让主体一侧留出更多空白',
+        ]) {
+          coach.phase = CapturePhase.ready;
+          coach.alignment = AlignmentResult(
+            true,
+            1,
+            1,
+            '可以拍照了',
+            true,
+            advice: advice,
+          );
+          coach.notifyListeners();
+          await tester.pumpAndSettle();
+          expect(direct, findsNothing);
+          expect(find.text('点击快门，保存到相册'), findsOneWidget);
+          final shutterRect = tester.getRect(shutter);
+          final footerRect = tester.getRect(footer);
+          final previewRect = tester.getRect(viewfinder);
+          expect(previewRect.bottom, lessThanOrEqualTo(footerRect.top));
+          expect(footerRect.bottom - shutterRect.bottom, closeTo(13, .01));
+          readyPreview ??= previewRect;
+          readyFooter ??= footerRect;
+          readyShutter ??= shutterRect;
+          expect(previewRect, readyPreview);
+          expect(footerRect, readyFooter);
+          expect(shutterRect, readyShutter);
+          expect(tester.widget<GestureDetector>(shutter).onTap, isNotNull);
+          if (advice != null) expect(find.text(advice), findsNothing);
+          expect(tester.takeException(), isNull);
+          if (const bool.fromEnvironment('EXPORT_PREVIEW') && advice != null) {
+            await savePreview(
+              tester,
+              'artifacts/references/composition-ready-advice-${width.toInt()}-$scale.png',
+            );
+          }
+        }
+      }
+      await tester.pumpWidget(const SizedBox());
     },
   );
   testWidgets(
@@ -904,7 +1013,9 @@ void main() {
       );
       if (const bool.fromEnvironment('EXPORT_PREVIEW')) {
         await savePreview(tester, '../framecoach-framing.png');
-        await tester.tap(find.byTooltip('拍照指南'));
+        await tester.tap(find.byKey(const Key('camera-more')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('menu-help')));
         await tick(tester, 400);
         await savePreview(tester, '../framecoach-help.png');
         await tester.tapAt(const Offset(10, 10));
@@ -944,14 +1055,17 @@ void main() {
       final compositionTitle = find.byKey(
         const Key('selected-composition-title'),
       );
-      final allPlansLabel = find.byKey(const Key('open-all-plans-label'));
+      final allPlans = find.byKey(const Key('open-all-plans'));
       expect(compositionTitle, findsOneWidget);
-      expect(allPlansLabel, findsOneWidget);
-      final titleRow = tester.widget<Row>(
-        find.byKey(const Key('composition-title-row')),
+      expect(allPlans.hitTestable(), findsOneWidget);
+      expect(
+        find.descendant(of: allPlans, matching: compositionTitle),
+        findsOneWidget,
       );
-      expect(titleRow.crossAxisAlignment, CrossAxisAlignment.baseline);
-      expect(titleRow.textBaseline, TextBaseline.alphabetic);
+      expect(
+        find.descendant(of: allPlans, matching: find.byIcon(Icons.expand_more)),
+        findsOneWidget,
+      );
       expect(find.text('适合度'), findsOneWidget);
       expect(
         find.descendant(
@@ -962,7 +1076,7 @@ void main() {
       );
       if (const bool.fromEnvironment('EXPORT_PREVIEW')) {
         await savePreview(tester, '../framecoach-recommendation.png');
-        await tester.tap(find.text('全部构图 ↗'));
+        await tester.tap(find.byKey(const Key('open-all-plans')));
         await tick(tester, 400);
         await savePreview(tester, '../framecoach-methods.png');
         await tester.tapAt(const Offset(10, 10));

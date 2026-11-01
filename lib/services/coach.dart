@@ -15,6 +15,7 @@ import 'gallery.dart';
 import 'gallery_error.dart';
 import 'camera_photo.dart';
 import 'camera_zoom.dart';
+import 'pose_guide.dart';
 
 enum CapturePhase {
   framing,
@@ -25,6 +26,8 @@ enum CapturePhase {
   capturing,
   captured,
 }
+
+enum ShootingMode { composition, pose }
 
 typedef PhotoSaver = Future<void> Function(Uint8List, String);
 
@@ -67,24 +70,51 @@ class CameraCoach extends ChangeNotifier {
     DateTime Function()? now,
     this.previewFrames,
     this.levelEvents,
+    PoseDetector? poseDetector,
   }) : isDemo = demo ?? (kIsWeb || const bool.fromEnvironment('DEMO_MODE')),
        _saver = saver ?? savePhoto,
        _now = now ?? DateTime.now {
+    poseGuide = PoseGuide(detector: poseDetector, now: _now)
+      ..addListener(_notify);
     zoom = CameraZoomState(onChanged: _zoomChanged, onSettled: _zoomSettled);
   }
   final DateTime Function() _now;
   final PhotoSaver _saver;
+  late final PoseGuide poseGuide;
   Future<bool> Function(bool explicit)? beforeSave;
   bool _saving = false;
   bool get saving => _saving;
   final Stream<GrayFrame>? previewFrames;
   final Stream<AccelerometerEvent>? levelEvents;
+  ShootingMode shootingMode = ShootingMode.composition;
+  bool get isPose => shootingMode == ShootingMode.pose;
+  bool get canChangeShootingMode =>
+      !disposed &&
+      !saving &&
+      phase != CapturePhase.capturing &&
+      phase != CapturePhase.captured;
+  bool get canCapturePose =>
+      isPose &&
+      initialized &&
+      !disposed &&
+      !zoom.isAdjusting &&
+      !zoom.busy &&
+      phase != CapturePhase.capturing &&
+      phase != CapturePhase.captured;
+
+  void setShootingMode(ShootingMode mode) {
+    if (!canChangeShootingMode || shootingMode == mode) return;
+    shootingMode = mode;
+    resetFraming();
+  }
+
   StreamSubscription<GrayFrame>? _previewSubscription;
   bool isDemo,
       initialized = false,
       disposed = false,
       _busy = false,
       _opening = false;
+  bool _refreshRecommendationOnNextFrame = false;
   bool get canExitDemo =>
       !disposed &&
       isDemo &&
@@ -130,6 +160,7 @@ class CameraCoach extends ChangeNotifier {
       _lastFrame != null &&
       _now().difference(_lastFrame!).inMilliseconds <= 850;
   bool get canRecommend =>
+      !isPose &&
       !disposed &&
       initialized &&
       !zoom.isAdjusting &&
@@ -312,8 +343,13 @@ class CameraCoach extends ChangeNotifier {
         _startLevel();
         await _startStream(controller);
       }
+      poseGuide.setActive(false);
       _watchdog?.cancel();
       _watchdog = Timer.periodic(const Duration(milliseconds: 350), (_) {
+        if (isPose) {
+          poseGuide.checkFreshness();
+          return;
+        }
         if (phase == CapturePhase.framing &&
             subjectLock.state == SubjectState.tracking &&
             !_hasFreshFrame) {
@@ -384,6 +420,8 @@ class CameraCoach extends ChangeNotifier {
                 );
                 // Motion can revoke readiness; a constant camera tilt cannot. Only
                 // fresh image frames accumulate a stable hold, never sensor callbacks.
+                if (isPose) poseGuide.setShaking(_level.blocksAlignment);
+                final wasReady = phase == CapturePhase.ready;
                 if (_level.blocksAlignment &&
                     (phase == CapturePhase.ready ||
                         phase == CapturePhase.guiding)) {
@@ -397,7 +435,8 @@ class CameraCoach extends ChangeNotifier {
                     alignment.valid,
                   );
                 }
-                if (_lastLevelNotify == null ||
+                if ((wasReady && phase != CapturePhase.ready) ||
+                    _lastLevelNotify == null ||
                     now.difference(_lastLevelNotify!).inMilliseconds >= 100) {
                   _lastLevelNotify = now;
                   _notify();
@@ -420,7 +459,9 @@ class CameraCoach extends ChangeNotifier {
     await controller.startImageStream((image) {
       if (disposed ||
           phase == CapturePhase.capturing ||
+          phase == CapturePhase.captured ||
           zoom.isAdjusting ||
+          (isPose && zoom.busy) ||
           _now().difference(_lastAnalysis).inMilliseconds < 120) {
         return;
       }
@@ -430,6 +471,8 @@ class CameraCoach extends ChangeNotifier {
             image.format.group != ImageFormatGroup.nv21) {
           throw StateError('Unsupported image format');
         }
+        // Pose is a manual reference overlay; do not sample or detect bodies.
+        if (isPose) return;
         final plane = image.planes.first;
         // Portrait is locked. Landscape native buffers need sensor rotation.
         final rotation = image.width > image.height
@@ -505,6 +548,7 @@ class CameraCoach extends ChangeNotifier {
     DateTime? capturedAt,
   }) async {
     if (disposed ||
+        isPose ||
         zoom.isAdjusting ||
         phase == CapturePhase.capturing ||
         phase == CapturePhase.analyzing ||
@@ -556,6 +600,25 @@ class CameraCoach extends ChangeNotifier {
         subjectLock.acceptTracking(analysis.tracking!);
       } else {
         subjectLock.accept(features);
+      }
+      if (_refreshRecommendationOnNextFrame &&
+          (phase == CapturePhase.recommending ||
+              phase == CapturePhase.guiding ||
+              phase == CapturePhase.ready) &&
+          subjectLock.state == SubjectState.tracking) {
+        final selectedKind = plan?.kind;
+        plans = const CompositionRecommender().recommend(
+          analysis.features,
+          selectedSubject: subjectLock.position,
+          evidence: evidence,
+        );
+        plan = selectedKind == null
+            ? plans.first
+            : plans.firstWhere(
+                (candidate) => candidate.kind == selectedKind,
+                orElse: () => plans.first,
+              );
+        _refreshRecommendationOnNextFrame = false;
       }
       if (!_hasFreshFrame) {
         subjectLock.markLost();
@@ -664,6 +727,7 @@ class CameraCoach extends ChangeNotifier {
     // Per-frame values repaint only the zoom overlay. The rest of the page
     // needs a rebuild only when availability or capture eligibility changes.
     final adjusting = zoom.isAdjusting, available = zoom.available;
+    if (isPose && (adjusting || zoom.busy)) poseGuide.invalidate();
     if (adjusting && !_zoomWasAdjusting && selectingSubject) {
       _generation++;
       _pendingSelection = null;
@@ -725,21 +789,32 @@ class CameraCoach extends ChangeNotifier {
 
   void _zoomSettled(bool requested) {
     if (!requested || disposed) return;
+    final preserveRecommendation =
+        !isPose &&
+        (phase == CapturePhase.recommending ||
+            phase == CapturePhase.guiding ||
+            phase == CapturePhase.ready);
+    poseGuide.invalidate();
     _generation++;
     _frame = null;
     _lastFrame = null;
     _pendingFrame = null;
-    plans = [];
-    plan = null;
+    if (!preserveRecommendation) {
+      plans = [];
+      plan = null;
+    }
+    _refreshRecommendationOnNextFrame = preserveRecommendation;
     _alignment.reset();
     alignment = const AlignmentResult(false, 0, 0, '倍率已更新，等待主体重新跟踪', false);
     if (subjectLock.selected) subjectLock.markLost();
     features = features.withSubject(null, 0);
-    if (phase != CapturePhase.framing) phase = CapturePhase.framing;
+    if (!preserveRecommendation) phase = CapturePhase.framing;
     error = null;
+    _notify();
   }
 
   void choosePlan(CompositionPlan next) {
+    if (isPose) return;
     plan = next;
     _alignment.reset();
     if (phase == CapturePhase.ready) {
@@ -749,6 +824,7 @@ class CameraCoach extends ChangeNotifier {
   }
 
   void startGuidance() {
+    if (isPose) return;
     if (plan == null) {
       return;
     }
@@ -781,6 +857,7 @@ class CameraCoach extends ChangeNotifier {
   }
 
   void selectSubject(Point2 p) {
+    if (isPose) return;
     if (disposed ||
         !initialized ||
         zoom.isAdjusting ||
@@ -808,7 +885,7 @@ class CameraCoach extends ChangeNotifier {
       subjectLock.trackable ? subjectLock.position : null,
       subjectLock.trackable ? 1 : 0,
     );
-    error = !subjectLock.trackable ? '请点在主体清晰的轮廓上。' : null;
+    error = null;
     if (plan != null) {
       plan = CompositionPlan(
         plan!.kind,
@@ -899,9 +976,13 @@ class CameraCoach extends ChangeNotifier {
   }
 
   void resetFraming() {
+    poseGuide.invalidate();
+    if (saving || phase == CapturePhase.capturing) return;
     _generation++;
     _pendingSelection = null;
     phase = CapturePhase.framing;
+    _refreshRecommendationOnNextFrame = false;
+    poseGuide.setActive(false);
     plans = [];
     plan = null;
     _alignment.reset();
@@ -909,6 +990,7 @@ class CameraCoach extends ChangeNotifier {
     saveError = null;
     subjectLock.reset();
     features = features.withSubject(null, 0);
+    _pendingFrame = null;
     _notify();
   }
 
@@ -916,6 +998,7 @@ class CameraCoach extends ChangeNotifier {
     await suspend();
     if (disposed) return;
     isDemo = true;
+    shootingMode = ShootingMode.composition;
     resetFraming();
     await initialize();
   }
@@ -930,7 +1013,7 @@ class CameraCoach extends ChangeNotifier {
   }
 
   Future<void> switchCamera() async {
-    if (isDemo || cameras.length < 2 || phase == CapturePhase.capturing) {
+    if (isDemo || cameras.length < 2 || !canChangeShootingMode) {
       return;
     }
     await suspend();
@@ -960,13 +1043,16 @@ class CameraCoach extends ChangeNotifier {
   }
 
   Future<void> takePhoto({bool overrideGuidance = false}) async {
-    if (phase == CapturePhase.capturing ||
+    if (disposed ||
+        phase == CapturePhase.capturing ||
         phase == CapturePhase.captured ||
         zoom.isAdjusting ||
+        (isPose && zoom.busy) ||
         !initialized) {
       return;
     }
-    if (!overrideGuidance &&
+    if (!isPose &&
+        !overrideGuidance &&
         (phase != CapturePhase.ready ||
             _lastFrame == null ||
             _now().difference(_lastFrame!).inMilliseconds > 850)) {
@@ -976,6 +1062,7 @@ class CameraCoach extends ChangeNotifier {
     final session = _session;
     final filter = _photoFilter;
     _pendingSelection = null;
+    poseGuide.setActive(false);
     phase = CapturePhase.capturing;
     saved = false;
     saveError = null;
@@ -1022,7 +1109,8 @@ class CameraCoach extends ChangeNotifier {
       await retrySave(explicit: false);
     } catch (_) {
       if (!disposed && session == _session) {
-        phase = CapturePhase.guiding;
+        phase = isPose ? CapturePhase.framing : CapturePhase.guiding;
+        poseGuide.setActive(false);
         error = '未能拍下照片，请再试一次。';
       }
     } finally {
@@ -1092,6 +1180,7 @@ class CameraCoach extends ChangeNotifier {
   }
 
   Future<void> suspend() async {
+    poseGuide.setActive(false);
     _session++;
     _generation++;
     _pendingSelection = null;
@@ -1155,6 +1244,8 @@ class CameraCoach extends ChangeNotifier {
     _levelSubscription?.cancel();
     camera?.dispose();
     demoImage?.dispose();
+    poseGuide.removeListener(_notify);
+    poseGuide.dispose();
     zoom.dispose();
     super.dispose();
   }

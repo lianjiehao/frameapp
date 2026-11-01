@@ -2,7 +2,7 @@
 
 [简体中文](README.md) | [English](README.en.md)
 
-一款用于学习与研究的构图相机应用：点选主体，获得六种经典构图建议，跟随实时引导调整画面。画面分析在本机完成。
+一款用于学习与研究的拍摄引导相机。默认「构图」：点选主体，比较六种经典构图建议；切换「摆姿」：选择自动适配的参考图，对照摆好后即可按快门拍照。画面分析在本机完成。详见[姿势拍摄](docs/pose.zh-CN.md)。
 
 ![取景：点选主体、构图建议、对齐拍照与拍照指南](docs/images/frame-overview.png)
 
@@ -35,7 +35,6 @@ flutter run -d <device-id>
 - [应用介绍](docs/app.zh-CN.md)：功能与使用限制。
 - [架构说明](docs/architecture.zh-CN.md) · [贡献指南](CONTRIBUTING.md)：源码入口、检查命令与 PR 流程。
 - [AI 辅助开发](docs/ai-development.zh-CN.md)：项目规则、任务示例与提交 skill。
-- [REA 功能研究](docs/rea.zh-CN.md)：用可选的 `frame-rea` skill 研究自有或已获授权的软件功能。
 - [软著申请材料](docs/distribution/README.md)：可按需填写的模板与 PDF 生成工具。
 
 ## 法律与许可

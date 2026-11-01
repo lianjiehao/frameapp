@@ -2,7 +2,7 @@
 
 [English](android-release.md) | [简体中文](android-release.zh-CN.md)
 
-Use `flutter run` or `flutter build apk --debug` for daily development. The following steps build your own release version.
+Use `flutter run` or `flutter build apk --debug` for daily development. Debug builds use the launcher name “取景 Debug” and a `.debug` package suffix to distinguish them from release builds. The following steps build your own release version.
 
 ## Configure
 

@@ -314,7 +314,9 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 250));
     expect(coach.initialized, true);
-    await tester.tap(find.byTooltip('拍照指南'));
+    await tester.tap(find.byKey(const Key('camera-more')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('menu-help')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     final help = find.byType(BottomSheet);
@@ -353,15 +355,12 @@ void main() {
         store: MemoryStore(PolicyDocument.revision),
       );
       final coach = CameraCoach(demo: true);
+      // This case exercises resuming after authorization, not async asset setup.
+      // Wait for real initialization instead of racing a fixed wall-clock delay.
+      await tester.runAsync(consent.load);
+      await tester.runAsync(coach.initialize);
       await tester.pumpWidget(FrameApp(coach: coach, consent: consent));
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 250)),
-      );
-      await tester.pump(const Duration(milliseconds: 250));
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 250)),
-      );
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pumpAndSettle();
       coach.phase = CapturePhase.captured;
       coach.saved = true;
       await coach.suspend();

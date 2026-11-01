@@ -6,8 +6,6 @@ Shared repository instructions for coding agents. Human onboarding: [简体中�
 
 When the user asks **提交代码** (or an equivalent commit request), automatically use [frame-commit](.agents/skills/frame-commit/SKILL.md); no skill name is required. The default scope is **all local uncommitted changes in this repository**: staged, unstaged, added, deleted, renamed and non-ignored untracked files, including earlier tasks' work. Do not ask which files to include or restrict the scope to the latest task unless the user explicitly narrows it. Preview the complete scope, message, checks, destination and outgoing commits, then wait for confirmation before staging, committing or pushing. Respect ignore rules and surface sensitive-file blockers. Editing these rules or finishing ordinary coding work does not itself trigger a submission.
 
-For REA-based feature research or extension, use [frame-rea](.agents/skills/frame-rea/SKILL.md). REA is optional; establish target authorization, keep private research artifacts out of Git, and implement from a sanitized behavioral specification. Never promise complete legal immunity.
-
 ## Scope and workflow
 
 - Inspect the current diff first. Preserve unrelated and uncommitted work.

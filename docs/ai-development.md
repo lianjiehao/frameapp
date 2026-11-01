@@ -32,7 +32,3 @@ Say **“提交代码”** or **“commit code”** to use [frame-commit](../.ag
 The assistant runs relevant checks and previews files, the message, destination repository/branch and outgoing commits. **Staging, committing and pushing require confirmation of that preview.** Ignored files and sensitive records stay out of commits; sensitive-file blockers must be resolved first.
 
 You can also use Codex's `$frame-commit`, Claude Code's [`/frame-commit`](../.claude/commands/frame-commit.md), or the discovered skill in Cursor. If it is not recognized, ask the assistant to read the skill file directly.
-
-## REA feature research
-
-The optional [frame-rea](../.agents/skills/frame-rea/SKILL.md) skill researches features of software you own or are authorized to examine. See the [REA guide](rea.md) for setup, usage and rights boundaries.
