@@ -214,19 +214,37 @@ class SceneEvidence {
 }
 
 class CompositionAnalysis {
-  const CompositionAnalysis(this.features, this.evidence, [this.tracking]);
+  const CompositionAnalysis(
+    this.features,
+    this.evidence, [
+    this.tracking,
+    this.selection,
+  ]);
   final SceneFeatures features;
   final SceneEvidence evidence;
   final SubjectTrackUpdate? tracking;
+  final SubjectSelection? selection;
 }
 
 CompositionAnalysis analyzeComposition(AnalysisRequest r) {
-  final tracking = r.tracking?.advance(r.frame, zoom: r.zoom);
-  final features = analyzeRequest(r, update: tracking);
+  final selection = r.selection == null
+      ? null
+      : SubjectSelection.capture(r.frame, r.selection!, zoom: r.zoom);
+  final tracking = selection == null
+      ? r.tracking?.advance(r.frame, zoom: r.zoom)
+      : null;
+  final features = selection == null
+      ? analyzeRequest(r, update: tracking)
+      : const FrameAnalyzer()
+            .analyze(analysisFrame(r.frame))
+            .withSubject(
+              selection.trackable ? selection.point : null,
+              selection.trackable ? 1 : 0,
+            );
   final evidence = SceneEvidence.measure(
     analysisFrame(r.frame),
     features,
-    selectedSubject: r.subjectLocked ? r.previous : null,
+    selectedSubject: selection?.point ?? (r.subjectLocked ? r.previous : null),
   );
   final measured = SceneFeatures(
     subject: features.subject,
@@ -240,5 +258,5 @@ CompositionAnalysis analyzeComposition(AnalysisRequest r) {
     vanishingPoint: evidence.vanishingPoint,
     regions: features.regions,
   );
-  return CompositionAnalysis(measured, evidence, tracking);
+  return CompositionAnalysis(measured, evidence, tracking, selection);
 }

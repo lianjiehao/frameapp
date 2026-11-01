@@ -13,6 +13,7 @@ import 'package:framecoach/services/privacy.dart';
 import 'package:framecoach/services/references.dart';
 import 'package:framecoach/ui/camera_zoom_dial.dart';
 
+import 'coach_test_support.dart';
 import 'tracking_test.dart' show expected, treeView;
 import 'privacy_test.dart' show MemoryStore, TestPermissions;
 import 'widget_test.dart' show loadAppFonts, savePreview;
@@ -1061,7 +1062,7 @@ void main() {
 
       await coach.initialize();
       await feed();
-      coach.selectSubject(expected());
+      await selectAndWait(coach, expected());
       await coach.confirmScene();
       expect(coach.phase, CapturePhase.recommending);
       expect(coach.subjectLock.selected, true);

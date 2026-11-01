@@ -41,6 +41,7 @@ typedef _PreviewRequest = ({
   bool selected,
   SubjectTrackSnapshot? tracking,
   double zoom,
+  Point2? selection,
 });
 
 GrayFrame _samplePreview(_PreviewSource source) =>
@@ -58,6 +59,7 @@ GrayFrame _samplePreview(_PreviewSource source) =>
         subjectLocked: request.selected,
         tracking: request.tracking,
         zoom: request.zoom,
+        selection: request.selection,
       ),
     ),
   );
@@ -164,9 +166,11 @@ class CameraCoach extends ChangeNotifier {
       !disposed &&
       initialized &&
       !zoom.isAdjusting &&
+      !zoom.busy &&
       phase == CapturePhase.framing &&
       subjectLock.state == SubjectState.tracking &&
       subjectLock.trackable &&
+      !selectingSubject &&
       _hasFreshFrame;
   final LevelFilter _levelFilter = LevelFilter();
   StreamSubscription<AccelerometerEvent>? _levelSubscription;
@@ -202,7 +206,6 @@ class CameraCoach extends ChangeNotifier {
   GrayFrame? _frame;
   Point2? _pendingSelection;
   bool get selectingSubject => _pendingSelection != null;
-  double _frameZoom = 1;
   (_PreviewSource, DateTime)? _pendingFrame;
   DateTime? _lastFrame;
   DateTime _lastAnalysis = DateTime.fromMillisecondsSinceEpoch(0);
@@ -283,7 +286,6 @@ class CameraCoach extends ChangeNotifier {
         initialized = true;
         if (levelEvents != null) _startLevel();
         _frame = _sampleDemo();
-        _frameZoom = zoom.value;
         features = const FrameAnalyzer().analyze(analysisFrame(_frame!));
         _lastFrame = _now();
         _demoTimer?.cancel();
@@ -548,6 +550,7 @@ class CameraCoach extends ChangeNotifier {
     DateTime? capturedAt,
   }) async {
     if (disposed ||
+        !initialized ||
         isPose ||
         zoom.isAdjusting ||
         phase == CapturePhase.capturing ||
@@ -560,48 +563,45 @@ class CameraCoach extends ChangeNotifier {
       _pendingFrame = (source, frameTime);
       return;
     }
+    // Do not spend another worker job on an already expired queued image.
+    if (_now().difference(frameTime).inMilliseconds > 850) return;
     _busy = true;
     _lastAnalysis = _now();
     final generation = _generation, session = _session;
     final frameZoom = zoom.value;
+    final selection = _pendingSelection;
     try {
-      final selection = _pendingSelection;
-      if (selection != null) {
-        // A tap must be able to escape stale/slow recovery of the old subject.
-        // Sample the newest queued pixels without running that old tracker.
-        // Keep the original capture time: an expired sample cannot seed a lock.
-        final frame = await compute(_samplePreview, source);
-        if (disposed || generation != _generation || session != _session) {
-          return;
-        }
-        _frame = frame;
-        _frameZoom = frameZoom;
-        _lastFrame = frameTime;
-        if (_hasFreshFrame) selectSubject(selection);
-        return;
-      }
       final (frame, analysis) = await compute(_analyzePreview, (
         source: source,
-        template: subjectLock.template,
-        previous: subjectLock.position,
-        selected: subjectLock.selected,
-        tracking: subjectLock.tracking,
+        template: selection == null ? subjectLock.template : null,
+        previous: selection == null ? subjectLock.position : null,
+        selected: selection == null && subjectLock.selected,
+        tracking: selection == null ? subjectLock.tracking : null,
         zoom: frameZoom,
+        selection: selection,
       ));
       if (disposed || generation != _generation || session != _session) {
         return;
       }
       _frame = frame;
-      _frameZoom = frameZoom;
       _lastFrame = frameTime;
       features = analysis.features;
       evidence = analysis.evidence;
-      if (analysis.tracking != null) {
+      final selected = analysis.selection;
+      if (selected != null) {
+        if (_hasFreshFrame) {
+          _pendingSelection = null;
+          subjectLock.acceptSelection(selected);
+          error = null;
+        }
+      } else if (analysis.tracking != null) {
         subjectLock.acceptTracking(analysis.tracking!);
       } else {
         subjectLock.accept(features);
       }
-      if (_refreshRecommendationOnNextFrame &&
+      if ((_refreshRecommendationOnNextFrame ||
+              (selection != null && plan != null)) &&
+          _hasFreshFrame &&
           (phase == CapturePhase.recommending ||
               phase == CapturePhase.guiding ||
               phase == CapturePhase.ready) &&
@@ -612,7 +612,9 @@ class CameraCoach extends ChangeNotifier {
           selectedSubject: subjectLock.position,
           evidence: evidence,
         );
-        plan = selectedKind == null
+        plan =
+            selectedKind == null ||
+                (selection != null && phase == CapturePhase.recommending)
             ? plans.first
             : plans.firstWhere(
                 (candidate) => candidate.kind == selectedKind,
@@ -646,7 +648,7 @@ class CameraCoach extends ChangeNotifier {
       _busy = false;
       final pending = _pendingFrame;
       _pendingFrame = null;
-      if (pending != null && !disposed && session == _session) {
+      if (pending != null && !disposed && initialized) {
         unawaited(_acceptPreview(pending.$1, capturedAt: pending.$2));
       }
     }
@@ -664,55 +666,8 @@ class CameraCoach extends ChangeNotifier {
       return;
     }
     error = null;
-    phase = CapturePhase.analyzing;
-    _pendingFrame = null;
-    _notify();
-    final generation = ++_generation;
-    final frozenFrame = _frame!;
-    late final CompositionAnalysis analysis;
-    try {
-      analysis = await compute(
-        analyzeComposition,
-        AnalysisRequest(
-          frozenFrame,
-          subjectLock.template,
-          subjectLock.position,
-          subjectLocked: subjectLock.selected,
-          tracking: subjectLock.tracking,
-          zoom: _frameZoom,
-        ),
-      );
-    } catch (_) {
-      if (!disposed && generation == _generation) {
-        phase = CapturePhase.framing;
-        error = '暂时没有得到构图建议，请再试一次。';
-        _notify();
-      }
-      return;
-    }
-    if (disposed ||
-        generation != _generation ||
-        phase != CapturePhase.analyzing) {
-      return;
-    }
-    final result = analysis.features;
-    features = result;
-    evidence = analysis.evidence;
-    if (analysis.tracking != null) {
-      subjectLock.acceptTracking(analysis.tracking!);
-    } else {
-      subjectLock.accept(result);
-    }
-    // Recheck the selected subject against the frozen image. A newer frame can
-    // arrive before its live tracking result, so the initial lock alone is not enough.
-    if (subjectLock.state != SubjectState.tracking || !_hasFreshFrame) {
-      subjectLock.markLost();
-      features = result.withSubject(null, 0);
-      phase = CapturePhase.framing;
-      error = subjectHint;
-      _notify();
-      return;
-    }
+    // Frame, selection, features and evidence are published atomically by the
+    // worker. Ranking this fresh result needs no second tracking/analysis job.
     plans = const CompositionRecommender().recommend(
       features,
       selectedSubject: subjectLock.position,
@@ -728,9 +683,10 @@ class CameraCoach extends ChangeNotifier {
     // needs a rebuild only when availability or capture eligibility changes.
     final adjusting = zoom.isAdjusting, available = zoom.available;
     if (isPose && (adjusting || zoom.busy)) poseGuide.invalidate();
-    if (adjusting && !_zoomWasAdjusting && selectingSubject) {
+    if (selectingSubject && ((adjusting && !_zoomWasAdjusting) || zoom.busy)) {
       _generation++;
       _pendingSelection = null;
+      _pendingFrame = null;
     }
     final invalidated = zoom.busy && subjectLock.state == SubjectState.tracking;
     if (invalidated) {
@@ -861,86 +817,27 @@ class CameraCoach extends ChangeNotifier {
     if (disposed ||
         !initialized ||
         zoom.isAdjusting ||
+        zoom.busy ||
         phase == CapturePhase.analyzing ||
         phase == CapturePhase.capturing ||
         phase == CapturePhase.captured) {
       return;
     }
     _generation++;
-    if (!_hasFreshFrame) {
-      // Retain only the latest explicit tap. The next camera sample services
-      // this request before tracking; do not silently ignore it or use old pixels.
-      _pendingSelection = p;
-      subjectLock.markLost();
-      features = features.withSubject(null, 0);
-      _alignment.reset();
-      if (phase == CapturePhase.ready) phase = CapturePhase.guiding;
-      alignment = const AlignmentResult(false, 0, 0, '正在重新锁定主体', false);
-      _notify();
-      return;
-    }
-    _pendingSelection = null;
-    subjectLock.select(_frame!, p, zoom: _frameZoom);
-    features = features.withSubject(
-      subjectLock.trackable ? subjectLock.position : null,
-      subjectLock.trackable ? 1 : 0,
-    );
+    // Every tap, including one on a fresh frame, uses the single worker queue.
+    // Rapid taps replace this intent; they never spawn parallel analysis jobs.
+    _pendingSelection = p;
+    subjectLock.markLost();
+    features = features.withSubject(null, 0);
     error = null;
-    if (plan != null) {
-      plan = CompositionPlan(
-        plan!.kind,
-        plan!.score,
-        plan!.target,
-        plan!.horizonTarget,
-        plan!.reason,
-      );
-    }
     _alignment.reset();
-    if (phase == CapturePhase.ready) {
-      phase = CapturePhase.guiding;
-    }
-    if (phase == CapturePhase.guiding) {
-      _updateAlignment();
-    }
+    if (phase == CapturePhase.ready) phase = CapturePhase.guiding;
+    alignment = const AlignmentResult(false, 0, 0, '正在重新锁定主体', false);
     _notify();
-    if (plan != null) _refreshPlansForSubject();
-  }
-
-  Future<void> _refreshPlansForSubject() async {
-    final generation = _generation, kind = plan?.kind;
-    if (_frame == null || kind == null) return;
-    try {
-      final analysis = await compute(
-        analyzeComposition,
-        AnalysisRequest(
-          _frame!,
-          subjectLock.template,
-          subjectLock.position,
-          subjectLocked: true,
-          tracking: subjectLock.tracking,
-          zoom: _frameZoom,
-        ),
+    if (_pendingFrame == null && _hasFreshFrame) {
+      unawaited(
+        _acceptPreview((frame: _frame!, plane: null), capturedAt: _lastFrame),
       );
-      if (disposed ||
-          generation != _generation ||
-          phase == CapturePhase.captured ||
-          phase == CapturePhase.capturing) {
-        return;
-      }
-      evidence = analysis.evidence;
-      plans = const CompositionRecommender().recommend(
-        analysis.features,
-        selectedSubject: subjectLock.position,
-        evidence: evidence,
-      );
-      plan = phase == CapturePhase.recommending
-          ? plans.first
-          : plans.firstWhere((p) => p.kind == kind);
-      _alignment.reset();
-      if (phase == CapturePhase.ready) phase = CapturePhase.guiding;
-      _notify();
-    } catch (_) {
-      // Keep the chosen method usable; never invent a new score after a failure.
     }
   }
 

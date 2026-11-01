@@ -9,6 +9,7 @@ import 'package:framecoach/services/coach.dart';
 import 'package:framecoach/services/privacy.dart';
 
 import 'privacy_test.dart' show MemoryStore, TestPermissions;
+import 'coach_test_support.dart';
 import 'tracking_test.dart' show expected, treeView;
 import 'widget_test.dart' show loadAppFonts, savePreview;
 
@@ -280,7 +281,7 @@ void main() {
         await tester.pump();
         await _pumpUntil(tester, () => analyzed.isCompleted);
         coach.removeListener(changed);
-        coach.selectSubject(expected());
+        await tester.runAsync(() => selectAndWait(coach, expected()));
         expect(coach.subjectLock.state, SubjectState.tracking);
         await tester.runAsync(coach.confirmScene);
         expect(coach.phase, CapturePhase.recommending);
