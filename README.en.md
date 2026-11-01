@@ -10,6 +10,7 @@ A Flutter composition camera for learning and research: select a subject, compar
 
 | Platform | Download |
 | --- | --- |
+
 | Android | [Download APK](https://www.pgyer.com/qujing-android) |
 | iOS | Installation or TestFlight link to be added |
 
