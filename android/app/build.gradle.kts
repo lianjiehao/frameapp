@@ -102,5 +102,5 @@ flutter {
 
 // Bundled MoveNet inference, offline and CPU-only.
 dependencies {
-    implementation("com.google.ai.edge.litert:litert:1.4.0")
+    implementation("com.google.ai.edge.litert:litert:2.3.2")
 }
