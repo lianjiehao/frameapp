@@ -10,21 +10,26 @@ A Flutter composition camera for learning and research: select a subject, compar
 
 | Platform | Download |
 | --- | --- |
-| Android | [Download native preview APK · 0.1.13](https://github.com/lianjiehao/frameapp/releases/download/v0.1.13-test.1/frame-android-0.1.13.apk) |
-| iOS | No public installation channel. Developers can install locally for debugging or distribute through the App Store. |
+
+| Android | [Download APK](https://www.pgyer.com/qujing-android) |
+| iOS | Installation or TestFlight link to be added |
+
+<!-- Replace these placeholders only when a verified build is available. -->
+iOS downloads are not available here yet. Build locally using the instructions below.
 
 ## Quick start
 
-Install **Flutter 3.47.6**, Git and Chrome:
+Install **Flutter 3.47.6**, Git and the Android SDK, then connect an Android 7.0+ phone with USB debugging enabled:
 
 ~~~sh
 git clone https://github.com/lianjiehao/frameapp.git
 cd frameapp
 flutter pub get --enforce-lockfile
-flutter run -d chrome
+flutter devices
+flutter run -d <device-id>
 ~~~
 
-Web provides practice mode only. For Android 7.0+, run `flutter run -d <device-id>`; add `--dart-define=DEMO_MODE=true` for mobile practice mode. iOS 15+ needs macOS, Xcode and your own development team; see [iOS setup](docs/ios-setup.md). Help and policy pages render locally.
+Replace `<device-id>` with the phone's device ID from `flutter devices`. iOS 15+ needs macOS, Xcode and your own development team; see [iOS setup](docs/ios-setup.md). Help and policy pages render locally.
 
 ## Develop and contribute
 
@@ -36,6 +41,6 @@ Web provides practice mode only. For Android 7.0+, run `flutter run -d <device-i
 
 ## Legal and license
 
-Code is licensed under [MIT](LICENSE); dependencies, fonts and assets retain [their own licenses](THIRD_PARTY_NOTICES.md). Demonstrations and research workflows support learning and research without restricting MIT's commercial-use, modification or distribution rights.
+Code is licensed under [MIT](LICENSE); dependencies, fonts and assets retain [their own licenses](THIRD_PARTY_NOTICES.md). The project's learning and research focus does not restrict MIT's commercial-use, modification or distribution rights.
 
 The software is provided as is. Use, research and distribution require appropriate authorization and respect for copyright, privacy and image rights. Disclaimers cannot waive liability that the law does not allow to be excluded; see [usage and licensing boundaries](docs/legal.md). For security issues, see [SECURITY.md](SECURITY.md).

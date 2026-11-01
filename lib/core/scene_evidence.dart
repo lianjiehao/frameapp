@@ -221,7 +221,7 @@ class CompositionAnalysis {
 }
 
 CompositionAnalysis analyzeComposition(AnalysisRequest r) {
-  final tracking = r.tracking?.advance(r.frame);
+  final tracking = r.tracking?.advance(r.frame, zoom: r.zoom);
   final features = analyzeRequest(r, update: tracking);
   final evidence = SceneEvidence.measure(
     analysisFrame(r.frame),

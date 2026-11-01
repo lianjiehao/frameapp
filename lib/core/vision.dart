@@ -331,7 +331,14 @@ class SubjectTemplate {
           (p.y + (y / 10 * 2 - 1) * ry) * f.height,
         ),
   ];
-  TrackMatch match(GrayFrame f, Point2 previous, {double searchRadius = .12}) {
+  TrackMatch match(
+    GrayFrame f,
+    Point2 previous, {
+    double searchRadius = .12,
+    double scale = 1,
+  }) {
+    final rx = radiusX * scale, ry = radiusY * scale;
+    if (rx >= .5 || ry >= .5) return const TrackMatch(null, 0);
     double best = double.infinity;
     Point2? point;
     // Wide enough to recover from ordinary panning; fixed template prevents drift.
@@ -346,17 +353,17 @@ class SubjectTemplate {
         xx++
       ) {
         final p = Point2(previous.x + xx / f.width, previous.y + yy / f.height);
-        final center = Point2(p.x + offsetX, p.y + offsetY);
+        final center = Point2(p.x + offsetX * scale, p.y + offsetY * scale);
         if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) {
           continue;
         }
-        if (center.x < radiusX ||
-            center.x > 1 - radiusX ||
-            center.y < radiusY ||
-            center.y > 1 - radiusY) {
+        if (center.x < rx ||
+            center.x > 1 - rx ||
+            center.y < ry ||
+            center.y > 1 - ry) {
           continue;
         }
-        final patch = _patch(f, center, radiusX, radiusY);
+        final patch = _patch(f, center, rx, ry);
         final pm = patch.reduce((a, b) => a + b) / patch.length;
         final ps = math.sqrt(
           patch.fold(0.0, (s, v) => s + math.pow(v - pm, 2)) / patch.length,
@@ -393,18 +400,20 @@ class AnalysisRequest {
     this.previous, {
     this.subjectLocked = false,
     this.tracking,
+    this.zoom = 1,
   });
   final GrayFrame frame;
   final SubjectTemplate? template;
   final Point2? previous;
   final bool subjectLocked;
   final SubjectTrackSnapshot? tracking;
+  final double zoom;
 }
 
 SceneFeatures analyzeRequest(AnalysisRequest r, {SubjectTrackUpdate? update}) {
   final features = const FrameAnalyzer().analyze(analysisFrame(r.frame));
   if (r.tracking != null) {
-    final match = update ?? r.tracking!.advance(r.frame);
+    final match = update ?? r.tracking!.advance(r.frame, zoom: r.zoom);
     return features.withSubject(match.point, match.confidence);
   }
   if (r.template != null && r.previous != null) {
@@ -430,11 +439,11 @@ class SubjectLock {
   bool get selected => position != null;
   bool get trackable => tracking != null || template != null;
 
-  void select(GrayFrame frame, Point2 point) {
+  void select(GrayFrame frame, Point2 point, {double zoom = 1}) {
     revision++;
     position = Point2(point.x.clamp(0.0, 1.0), point.y.clamp(0.0, 1.0));
     template = SubjectTemplate.capture(frame, position!);
-    tracking = SubjectTrackSnapshot.capture(frame, position!);
+    tracking = SubjectTrackSnapshot.capture(frame, position!, zoom: zoom);
     state = trackable ? SubjectState.tracking : SubjectState.needsDetail;
   }
 

@@ -544,13 +544,11 @@ void main() {
       expect(filterRect.center.dy, tester.getCenter(title).dy);
       expect(filterRect.height, greaterThanOrEqualTo(44));
       for (final tooltip in ['切换镜头', '闪光灯']) {
-        final control = find.byTooltip(tooltip);
-        expect(control, findsOneWidget);
-        expect(tester.getRect(control).bottom, lessThan(previewRect.top));
+        expect(find.byTooltip(tooltip), findsNothing);
       }
       expect(
-        tester.getRect(find.byTooltip('切换镜头')).width,
-        lessThanOrEqualTo(38),
+        tester.getRect(find.byKey(const Key('exit-demo'))).bottom,
+        lessThan(previewRect.top),
       );
       expect(
         find.descendant(

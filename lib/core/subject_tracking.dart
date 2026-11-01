@@ -64,14 +64,20 @@ class SubjectTrackSnapshot {
     this.points,
     this.reference,
     this.scale,
+    this.zoom,
   );
   final List<GrayFrame> pyramid;
   final Point2 anchor;
   final List<Point2> points;
   final SubjectTemplate? reference;
   final double scale;
+  final double zoom;
 
-  static SubjectTrackSnapshot? capture(GrayFrame frame, Point2 anchor) {
+  static SubjectTrackSnapshot? capture(
+    GrayFrame frame,
+    Point2 anchor, {
+    double zoom = 1,
+  }) {
     final points = _corners(frame, anchor, .14, .13);
     if (points.length < 4) {
       // A click on a smooth trunk can use nearby branches/corners while keeping
@@ -93,38 +99,100 @@ class SubjectTrackSnapshot {
       points.take(24).toList(),
       reference,
       1,
+      zoom,
     );
   }
 
-  SubjectTrackUpdate advance(GrayFrame frame) {
+  SubjectTrackUpdate advance(GrayFrame frame, {double? zoom}) {
+    if (zoom != null && zoom != this.zoom) {
+      if (!zoom.isFinite || zoom <= 0) return SubjectTrackUpdate(null, 0, this);
+      final projected = _atZoom(zoom);
+      if (projected == null) return SubjectTrackUpdate(null, 0, this);
+      // Reproject the verified old pixels, never seed an identity from the new
+      // scene. A real image match is still required before showing a lock.
+      final update = projected._advance(frame, predictMotion: false);
+      if (update.point == null) return SubjectTrackUpdate(null, 0, this);
+      // Lens resampling can introduce a small flow offset on each zoom step.
+      // When the unchanged selection template still matches very closely,
+      // anchor to it so repeated in/out adjustments cannot accumulate drift.
+      final match = reference?.match(
+        frame,
+        update.point!,
+        searchRadius: .02,
+        scale: update.snapshot.scale,
+      );
+      if (match?.point != null && match!.confidence >= .9) {
+        final next = update.snapshot;
+        return SubjectTrackUpdate(
+          match.point,
+          update.confidence,
+          SubjectTrackSnapshot._(
+            next.pyramid,
+            match.point!,
+            next.points,
+            reference,
+            next.scale,
+            next.zoom,
+          ),
+        );
+      }
+      return update;
+    }
+    return _advance(frame);
+  }
+
+  SubjectTrackUpdate _advance(GrayFrame frame, {bool predictMotion = true}) {
     if (frame.width != pyramid.first.width ||
         frame.height != pyramid.first.height) {
       return SubjectTrackUpdate(null, 0, this);
     }
     final current = _pyramid(frame), w = frame.width, h = frame.height;
-    final motion = _cameraMotion(pyramid.last, current.last);
+    // Repeated keys/text can give coarse whole-frame registration a strong
+    // match one or more rows away. Try short local flow at the last verified
+    // positions first, before asking global registration to predict a fast pan.
+    var pairs = _flowPairs(
+      pyramid.take(2).toList(),
+      current.take(2).toList(),
+      const Point2(0, 0),
+    );
+    final localModel = _consensus(pairs, w, h);
+    final localInliers = localModel == null
+        ? 0
+        : pairs
+              .where((p) => localModel.apply(p.$1).distanceTo(p.$2) * h < 2)
+              .length;
+    final localReliable =
+        localModel != null &&
+        localInliers >= math.max(6, points.length * .65) &&
+        localModel.apply(anchor).distanceTo(anchor) * h < 8;
+    // Zooming out reveals pixels absent from the old image. Do not let that
+    // unknown border bias whole-frame registration away from the known crop.
+    final motion = predictMotion && !localReliable
+        ? _cameraMotion(pyramid.last, current.last)
+        : const Point2(0, 0);
     final factor = math.pow(2, pyramid.length - 1).toDouble();
     final predicted = Point2(motion.x * factor / w, motion.y * factor / h);
-    final pairs = <(Point2, Point2)>[];
-    for (final point in points) {
-      final next = _flow(
-        pyramid,
-        current,
-        point,
-        Point2(point.x + predicted.x, point.y + predicted.y),
-      );
-      if (next == null) continue;
-      final back = _flow(current, pyramid, next, point);
-      if (back == null || back.distanceTo(point) * h > 1.5) continue;
-      if (_correlation(pyramid.first, current.first, point, next, 3) < .7) {
-        continue;
-      }
-      pairs.add((point, next));
+    if (!localReliable) {
+      pairs = _flowPairs(pyramid, current, predicted);
     }
+    final model = localReliable ? localModel : _consensus(pairs, w, h);
     if (pairs.length >= 3) {
-      final model = _consensus(pairs, w, h);
       if (model != null) {
-        final nextAnchor = model.apply(anchor);
+        var nextAnchor = model.apply(anchor);
+        // Corners can sit on one side of a smooth subject. Extrapolating their
+        // rotation/scale to the click accumulates drift during perspective or
+        // focus changes. Verify the clicked patch itself in both directions;
+        // use the surrounding consensus only if that patch has no clear match.
+        final refined = _flow(pyramid, current, anchor, nextAnchor, radius: 7);
+        if (refined != null &&
+            refined.distanceTo(nextAnchor) * h < 3 &&
+            _correlation(pyramid.first, current.first, anchor, refined, 7) >
+                .85) {
+          final back = _flow(current, pyramid, refined, anchor, radius: 7);
+          if (back != null && back.distanceTo(anchor) * h < .75) {
+            nextAnchor = refined;
+          }
+        }
         if (nextAnchor.x < 0 ||
             nextAnchor.x > 1 ||
             nextAnchor.y < 0 ||
@@ -140,19 +208,14 @@ class SubjectTrackSnapshot {
                 0.0,
                 .95,
               );
-          final nextScale = (scale * model.size).clamp(.4, 2.5);
+          final nextScale = scale * model.size;
           var nextPoints = inliers.map((p) => p.$2).toList();
           // Refresh texture only after a verified movement consensus. The fixed
           // reference remains available for recovery and is never replaced.
           if (inliers.length >= 5 &&
               confidence >= .7 &&
               nextPoints.length < 18) {
-            for (final p in _corners(
-              frame,
-              nextAnchor,
-              .14 * nextScale,
-              .13 * nextScale,
-            )) {
+            for (final p in _corners(frame, nextAnchor, .14, .13)) {
               if (nextPoints.every((old) => old.distanceTo(p) > .025)) {
                 nextPoints.add(p);
               }
@@ -165,6 +228,7 @@ class SubjectTrackSnapshot {
             nextPoints,
             reference,
             nextScale,
+            zoom,
           );
           return SubjectTrackUpdate(nextAnchor, confidence, snapshot);
         }
@@ -174,9 +238,18 @@ class SubjectTrackSnapshot {
     // pans. A strict original appearance check guards against background drift.
     if (reference != null) {
       final center = Point2(anchor.x + predicted.x, anchor.y + predicted.y);
-      final match = reference!.match(frame, center, searchRadius: .16);
+      final match = reference!.match(
+        frame,
+        center,
+        searchRadius: .16,
+        scale: scale,
+      );
       if (match.point != null && match.confidence >= .72) {
-        final next = SubjectTrackSnapshot.capture(frame, match.point!);
+        final next = SubjectTrackSnapshot.capture(
+          frame,
+          match.point!,
+          zoom: zoom,
+        );
         if (next != null) {
           return SubjectTrackUpdate(
             match.point,
@@ -186,7 +259,8 @@ class SubjectTrackSnapshot {
               next.anchor,
               next.points,
               reference,
-              1,
+              scale,
+              zoom,
             ),
           );
         }
@@ -194,6 +268,70 @@ class SubjectTrackSnapshot {
     }
     return SubjectTrackUpdate(null, 0, this);
   }
+
+  List<(Point2, Point2)> _flowPairs(
+    List<GrayFrame> from,
+    List<GrayFrame> to,
+    Point2 predicted,
+  ) {
+    final pairs = <(Point2, Point2)>[];
+    for (final point in points) {
+      final next = _flow(
+        from,
+        to,
+        point,
+        Point2(point.x + predicted.x, point.y + predicted.y),
+      );
+      if (next == null) continue;
+      final back = _flow(to, from, next, point);
+      if (back == null || back.distanceTo(point) * from.first.height > 1.5) {
+        continue;
+      }
+      if (_correlation(from.first, to.first, point, next, 3) < .7) continue;
+      pairs.add((point, next));
+    }
+    return pairs;
+  }
+
+  SubjectTrackSnapshot? _atZoom(double nextZoom) {
+    final ratio = nextZoom / zoom;
+    Point2 project(Point2 p) =>
+        Point2(.5 + (p.x - .5) * ratio, .5 + (p.y - .5) * ratio);
+    final nextAnchor = project(anchor);
+    if (nextAnchor.x < 0 ||
+        nextAnchor.x > 1 ||
+        nextAnchor.y < 0 ||
+        nextAnchor.y > 1) {
+      return null;
+    }
+    final warped = [for (final level in pyramid) _zoomFrame(level, ratio)];
+    return SubjectTrackSnapshot._(
+      warped,
+      nextAnchor,
+      points
+          .map(project)
+          .where((p) => p.x > 0 && p.x < 1 && p.y > 0 && p.y < 1)
+          .toList(),
+      reference,
+      scale * ratio,
+      nextZoom,
+    );
+  }
+}
+
+GrayFrame _zoomFrame(GrayFrame frame, double ratio) {
+  final pixels = Uint8List(frame.pixels.length);
+  for (int y = 0; y < frame.height; y++) {
+    for (int x = 0; x < frame.width; x++) {
+      final sx = frame.width / 2 + (x - frame.width / 2) / ratio;
+      final sy = frame.height / 2 + (y - frame.height / 2) / ratio;
+      pixels[y * frame.width +
+          x] = sx < 0 || sy < 0 || sx >= frame.width || sy >= frame.height
+          ? 128
+          : frame.sample(sx, sy).round().clamp(0, 255);
+    }
+  }
+  return GrayFrame(frame.width, frame.height, pixels);
 }
 
 class SubjectTrackUpdate {
@@ -287,8 +425,9 @@ Point2? _flow(
   List<GrayFrame> from,
   List<GrayFrame> to,
   Point2 source,
-  Point2 guess,
-) {
+  Point2 guess, {
+  int radius = 3,
+}) {
   double px = 0, py = 0;
   for (int level = from.length - 1; level >= 0; level--) {
     final a = from[level], b = to[level];
@@ -300,7 +439,6 @@ Point2? _flow(
       px *= 2;
       py *= 2;
     }
-    const radius = 3;
     if (sx < radius + 1 ||
         sy < radius + 1 ||
         sx > a.width - radius - 2 ||

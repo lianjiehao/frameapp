@@ -3,8 +3,8 @@
 | Material / 内容 | License / 许可 |
 | --- | --- |
 | Project code and documentation / 项目代码与文档 | [MIT](LICENSE); lianjiehao and FRAME contributors. |
-| `assets/images/park.jpg` | Bundled practice image, distributed under [MIT](LICENSE). / 内置练习样片，采用 [MIT](LICENSE) 许可证分发。 |
-| `docs/images/*.png` | FRAME practice-mode screenshots, distributed under [MIT](LICENSE). / FRAME 练习模式截图，采用 [MIT](LICENSE) 许可证分发。 |
+| `assets/images/park.jpg` | Bundled sample image, distributed under [MIT](LICENSE). / 内置示例照片，采用 [MIT](LICENSE) 许可证分发。 |
+| `docs/images/*.png` | FRAME screenshots, distributed under [MIT](LICENSE). / FRAME 界面截图，采用 [MIT](LICENSE) 许可证分发。 |
 | `assets/fonts/DMSerifDisplay-Regular.ttf` | DM Serif Display, SIL Open Font License 1.1; [license](assets/fonts/OFL.txt). |
 | `assets/fonts/FrameSans-Regular.ttf` | Subset of Noto Sans SC, SIL Open Font License 1.1; [license](assets/fonts/NotoSansSC-OFL.txt). |
 

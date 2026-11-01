@@ -1,15 +1,15 @@
 name: framecoach
 description: A local composition coach for iOS and Android.
 publish_to: none
-version: 0.1.13+14
+version: 0.1.16+17
 environment:
   sdk: '>=3.12.0 <4.0.0'
 dependencies:
   flutter:
     sdk: flutter
-  camera: ^0.12.1
+  camera: ^0.12.2
   gal: ^2.3.3
-  web: ^1.1.1
+  web: ^1.1.2
   sensors_plus: ^7.1.1
   shared_preferences: ^2.5.6
   webview_flutter: ^4.14.1
