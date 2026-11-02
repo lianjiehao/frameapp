@@ -599,9 +599,11 @@ class CameraCoach extends ChangeNotifier {
       } else {
         subjectLock.accept(features);
       }
+
       if ((_refreshRecommendationOnNextFrame ||
               (selection != null && plan != null)) &&
           _hasFreshFrame &&
+
           (phase == CapturePhase.recommending ||
               phase == CapturePhase.guiding ||
               phase == CapturePhase.ready) &&
@@ -615,6 +617,7 @@ class CameraCoach extends ChangeNotifier {
         plan =
             selectedKind == null ||
                 (selection != null && phase == CapturePhase.recommending)
+
             ? plans.first
             : plans.firstWhere(
                 (candidate) => candidate.kind == selectedKind,
@@ -830,6 +833,7 @@ class CameraCoach extends ChangeNotifier {
     subjectLock.markLost();
     features = features.withSubject(null, 0);
     error = null;
+
     _alignment.reset();
     if (phase == CapturePhase.ready) phase = CapturePhase.guiding;
     alignment = const AlignmentResult(false, 0, 0, '正在重新锁定主体', false);
