@@ -15,6 +15,7 @@ import 'package:framecoach/ui/photo_filters.dart';
 import 'package:framecoach/ui/guides.dart';
 import 'privacy_test.dart' show MemoryStore, TestPermissions;
 import 'widget_test.dart' show loadAppFonts, savePreview;
+import 'coach_test_support.dart';
 import 'tracking_test.dart' show treeView, expected;
 
 Future<List<int>> filteredSwatch(Color color, PhotoFilter filter) async {
@@ -363,7 +364,7 @@ void main() {
       }
 
       await feed();
-      coach.selectSubject(expected(panX: 14, panY: -3));
+      await selectAndWait(coach, expected(panX: 14, panY: -3));
       await coach.confirmScene();
       coach.choosePlan(
         coach.plans.firstWhere((p) => p.kind == CompositionKind.centered),
@@ -544,13 +545,18 @@ void main() {
       expect(filterRect.center.dy, tester.getCenter(title).dy);
       expect(filterRect.height, greaterThanOrEqualTo(44));
       for (final tooltip in ['切换镜头', '闪光灯']) {
-        final control = find.byTooltip(tooltip);
-        expect(control, findsOneWidget);
-        expect(tester.getRect(control).bottom, lessThan(previewRect.top));
+        expect(find.byTooltip(tooltip), findsNothing);
       }
+      expect(find.byIcon(Icons.tune), findsOneWidget);
+      await tester.tap(find.byKey(const Key('camera-more')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('menu-help')), findsOneWidget);
+      expect(find.byKey(const Key('menu-flash')), findsNothing);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
       expect(
-        tester.getRect(find.byTooltip('切换镜头')).width,
-        lessThanOrEqualTo(38),
+        tester.getRect(find.byKey(const Key('exit-demo'))).bottom,
+        lessThan(previewRect.top),
       );
       expect(
         find.descendant(

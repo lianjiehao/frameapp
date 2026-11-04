@@ -2,7 +2,7 @@
 
 [简体中文](README.md) | [English](README.en.md)
 
-A Flutter composition camera for learning and research: select a subject, compare six classic compositions, and follow live alignment guides. Scene analysis stays on the device.
+A camera guide for learning and research. Composition is the default: select a subject and compare six classic composition suggestions. Pose automatically fits a reference image; follow it and press the shutter when ready. Processing stays on your device. See [Pose photography](docs/pose.md).
 
 ![FRAME: subject selection, composition suggestions, alignment and photo guide](docs/images/frame-overview.png)
 
@@ -10,7 +10,7 @@ A Flutter composition camera for learning and research: select a subject, compar
 
 | Platform | Download |
 | --- | --- |
-| Android | [Download APK](https://www.pgyer.com/9baefc9fec2a3373015d549f23b8eef6) |
+| Android | [Download APK](https://www.pgyer.com/qujing-android) |
 | iOS | Installation or TestFlight link to be added |
 
 <!-- Replace these placeholders only when a verified build is available. -->
@@ -35,7 +35,6 @@ Replace `<device-id>` with the phone's device ID from `flutter devices`. iOS 15+
 - [App overview](docs/app.md): features and limitations.
 - [Architecture](docs/architecture.md) · [Contributing](CONTRIBUTING.en.md): source map, checks and PR workflow.
 - [AI-assisted development](docs/ai-development.md): project rules, task examples and the commit skill.
-- [REA feature research](docs/rea.md): study features of software you own or are authorized to examine with the optional `frame-rea` skill.
 - [Software copyright materials](docs/distribution/README.en.md): adaptable templates and a PDF generator.
 
 ## Legal and license

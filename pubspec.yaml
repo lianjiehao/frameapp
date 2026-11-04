@@ -1,29 +1,36 @@
 name: framecoach
 description: A local composition coach for iOS and Android.
 publish_to: none
-version: 0.1.15+16
+version: 0.1.18+19
 environment:
   sdk: '>=3.12.0 <4.0.0'
 dependencies:
   flutter:
     sdk: flutter
-  camera: ^0.12.1
+  camera: ^0.12.2
   gal: ^2.3.3
-  web: ^1.1.1
+  web: ^1.1.2
   sensors_plus: ^7.1.1
   shared_preferences: ^2.5.6
   webview_flutter: ^4.14.1
   url_launcher: ^6.3.3
   permission_handler: 12.0.1
+  image_picker: ^1.2.0
+  path_provider: ^2.1.5
+  crypto: ^3.0.6
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
 flutter:
   uses-material-design: true
   assets:
+    - assets/models/
     - assets/images/park.jpg
     - assets/legal/
+    - assets/reference_templates/
   fonts:
     - family: FrameSans
       fonts:

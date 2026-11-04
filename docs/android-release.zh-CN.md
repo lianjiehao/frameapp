@@ -2,7 +2,7 @@
 
 [English](android-release.md) | [简体中文](android-release.zh-CN.md)
 
-日常开发使用 `flutter run` 或 `flutter build apk --debug`。以下步骤用于构建自己的发布版本。
+日常开发使用 `flutter run` 或 `flutter build apk --debug`。Debug 版桌面名称为「取景 Debug」，包名带 `.debug` 后缀，便于与发布版区分。以下步骤用于构建自己的发布版本。
 
 ## 配置
 

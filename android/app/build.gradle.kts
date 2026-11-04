@@ -59,6 +59,11 @@ android {
             // Keep local debug installs separate from the published package.
             applicationIdSuffix = ".debug"
         }
+        getByName("profile") {
+            // Performance checks are local development, with the debug identity.
+            applicationIdSuffix = ".debug"
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             // Never use the debug keystore for a distributable build.
             if (hasReleaseSigning) {
@@ -93,4 +98,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+// Bundled MoveNet inference, offline and CPU-only.
+dependencies {
+    implementation("com.google.ai.edge.litert:litert:1.4.0")
 }

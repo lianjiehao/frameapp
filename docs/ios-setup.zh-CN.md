@@ -2,7 +2,7 @@
 
 [English](ios-setup.md) | [简体中文](ios-setup.zh-CN.md)
 
-需要 macOS、与目标设备兼容的完整 Xcode 和 Flutter 3.47.6。工程最低 iOS 15，使用 Swift Package Manager。
+需要 macOS、与目标设备兼容的完整 Xcode 和 Flutter 3.47.6。工程最低 iOS 15。插件通过 Flutter 的 Swift Package Manager 集成，无需配置 CocoaPods。摆姿人体检测使用系统 Vision，在后台串行队列本机执行；无需下载模型或接入 TensorFlow。参考图使用系统图片选择器与应用私有文件。见[姿势参考图](pose.zh-CN.md)。
 
 ## 编译与运行
 
@@ -18,11 +18,11 @@ open ios/Runner.xcworkspace
 
 3. 在 Runner → Signing & Capabilities 设置自己的开发团队，必要时更换为唯一 Bundle ID；不要提交本机签名变化。
 4. 连接并信任 iPhone，按系统要求启用开发者模式，再执行 `flutter run -d <device-id>`。
-5. 仅检查编译可用 `flutter build ios --release --no-codesign`，产物不能直接安装。
+5. 仅检查编译可用 `flutter build ios --debug --no-codesign`，产物不能直接安装。
 
 ## 权限插件
 
-保留 `ios/Runner/Info.plist` 中已有的相机、仅添加照片和运动用途说明。通过 Flutter 编译时，权限插件读取该文件。直接从 Xcode 启动而相机授权异常时，将构建环境中的 `PERMISSION_HANDLER_INFO_PLIST` 指向当前仓库 `ios/Runner/Info.plist` 的绝对路径，重新解析 Swift 包。不要用添加麦克风或相册读取权限来绕过问题。
+保留 `ios/Runner/Info.plist` 中已有的相机、仅添加照片、主动选择参考图和运动用途说明。通过 Flutter 编译时，权限插件读取该文件。直接从 Xcode 启动而相机授权异常时，将构建环境中的 `PERMISSION_HANDLER_INFO_PLIST` 指向当前仓库 `ios/Runner/Info.plist` 的绝对路径，重新解析 Swift 包。不要用添加麦克风或相册读取权限来绕过问题。
 
 ## 真机检查
 

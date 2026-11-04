@@ -29,10 +29,8 @@
 
 说**“提交代码”**即可使用 [frame-commit](../.agents/skills/frame-commit/SKILL.md)。默认包含当前仓库的**全部本地未提交改动**（已暂存、未暂存、未忽略的新文件及先前任务改动）；只有明确指定“仅提交文档”等范围时才缩小。
 
+生效的 Git 作者邮箱为 `lianjiehao.dev@gmail.com` 时，统一在 `lianjiehao/frameapp` 的 `owner-contributors` 分支提交并推送，不受当前分支或 upstream 影响。需要创建或切换分支时，先纳入预览，确认后执行。其他贡献者继续使用正常的 Fork／PR 流程，见[维护者规则](community-governance.zh-CN.md)。
+
 助手先运行相关检查，预览文件、提交说明、推送仓库／分支和将推送的提交，**确认后才暂存、commit 和 push**。忽略文件和敏感资料不进入提交，发现敏感文件须先处理。
 
 也可使用 Codex 的 `$frame-commit`、Claude Code 的 [`/frame-commit`](../.claude/commands/frame-commit.md) 或 Cursor 识别到的同名 skill。未识别时，直接要求读取上述 skill 文件。
-
-## REA 功能研究
-
-可选的 [frame-rea](../.agents/skills/frame-rea/SKILL.md) 用于研究自有或已获授权的软件功能。安装、调用与版权边界见 [REA 指南](rea.zh-CN.md)。

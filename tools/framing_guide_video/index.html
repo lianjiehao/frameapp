@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: FrameSans; src: url('./assets/FrameSans-Regular.ttf'); }
+      @font-face { font-family: Editorial; src: url('./assets/DMSerifDisplay-Regular.ttf'); }
+      :root { --ink:#101311; --paper:#f2f0e7; --acid:#d7f574; --muted:#90978e; }
+      * { box-sizing:border-box; }
+      html, body { margin:0; width:1080px; height:1920px; overflow:hidden; background:var(--ink); }
+      body { font-family:FrameSans, sans-serif; color:var(--paper); }
+      #root { position:relative; width:1080px; height:1920px; overflow:hidden; background:var(--ink); }
+      .clip { position:absolute; inset:0; }
+      .ambient { position:absolute; pointer-events:none; }
+      .grain { inset:-40px; opacity:.07; background-image:radial-gradient(rgba(255,255,255,.8) .7px, transparent .7px); background-size:6px 6px; mix-blend-mode:screen; }
+      .glow { width:700px; height:700px; border-radius:50%; filter:blur(16px); background:rgba(215,245,116,.12); }
+      .eyebrow { font-size:24px; letter-spacing:.22em; text-transform:uppercase; color:var(--acid); }
+      .headline { font-size:88px; line-height:1.08; letter-spacing:-.045em; font-weight:400; }
+      .subhead { font-size:32px; line-height:1.5; color:rgba(242,240,231,.72); }
+      .rule { width:62px; height:3px; background:var(--acid); }
+      .hero-img { width:100%; height:100%; object-fit:cover; object-position:center 34%; filter:saturate(.94) contrast(1.02); }
+      .hero-shade { position:absolute; inset:0; background:linear-gradient(180deg, rgba(16,19,17,.12), rgba(16,19,17,.94) 82%); }
+      .hero-copy { position:absolute; left:70px; right:70px; bottom:104px; }
+      .hero-copy .headline { max-width:760px; margin:24px 0 22px; }
+      .hero-copy .subhead { max-width:760px; margin:0; }
+      .scene-bg { position:absolute; inset:0; background:radial-gradient(circle at 72% 14%, #293328 0, #111713 46%, #0c100d 100%); }
+      .scene-copy { position:absolute; left:70px; top:170px; width:410px; }
+      .scene-copy .headline { font-size:67px; margin:24px 0 28px; }
+      .step-list { margin-top:42px; display:grid; gap:24px; font-size:26px; }
+      .step-list span { color:var(--acid); margin-right:18px; font-size:20px; }
+      .phone { position:absolute; right:56px; top:132px; width:490px; height:1170px; border:2px solid rgba(242,240,231,.18); border-radius:38px; overflow:hidden; background:#0f130f; box-shadow:0 22px 80px rgba(0,0,0,.42); }
+      .phone-inner { position:absolute; inset:18px; border-radius:27px; overflow:hidden; background:#111511; }
+      .phone-top { position:absolute; left:28px; right:28px; top:24px; height:46px; display:flex; align-items:center; gap:15px; z-index:5; font-size:16px; }
+      .mode { color:var(--muted); }
+      .mode.active { color:var(--acid); }
+      .mode-line { position:absolute; left:136px; top:35px; width:28px; height:3px; background:var(--acid); border-radius:3px; }
+      .menu { margin-left:auto; font-size:26px; color:var(--paper); }
+      .steps { position:absolute; left:28px; right:28px; top:91px; height:26px; display:flex; align-items:center; gap:7px; color:var(--muted); font-size:13px; z-index:5; }
+      .steps b { color:var(--acid); font-weight:400; }
+      .steps .line { flex:1; height:1px; background:rgba(242,240,231,.17); }
+      .preview { position:absolute; left:28px; right:28px; top:136px; height:700px; border-radius:19px; overflow:hidden; background:#20261f; }
+      .preview > img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+      .preview .preview-park { object-position:center; filter:saturate(.8) brightness(.86); }
+      .preview .reference { opacity:.45; mix-blend-mode:screen; object-position:center top; }
+      .preview-label { position:absolute; right:18px; top:18px; padding:8px 13px; border-radius:16px; background:rgba(16,19,17,.55); font-size:13px; color:var(--paper); }
+      .level { position:absolute; right:18px; bottom:16px; font-size:13px; color:rgba(242,240,231,.75); }
+      .preview-guide { position:absolute; inset:0; border:2px solid rgba(215,245,116,.88); margin:94px 104px 100px; border-radius:160px 160px 88px 88px; opacity:.8; }
+      .preview-guide:after { content:''; position:absolute; width:34px; height:34px; border:3px solid var(--acid); border-radius:50%; left:50%; top:46%; margin:-17px; box-shadow:0 0 0 10px rgba(215,245,116,.16); }
+      .controls { position:absolute; left:28px; right:28px; bottom:34px; display:grid; gap:20px; }
+      .tool-row { height:74px; border:1px solid rgba(242,240,231,.18); border-radius:15px; display:flex; align-items:center; gap:14px; padding:10px 14px; background:rgba(242,240,231,.035); }
+      .thumb { width:38px; height:52px; border-radius:6px; object-fit:cover; }
+      .slider-label { color:var(--muted); font-size:14px; }
+      .slider { flex:1; height:5px; background:rgba(242,240,231,.22); border-radius:6px; position:relative; }
+      .slider i { position:absolute; left:0; top:0; bottom:0; width:45%; border-radius:6px; background:var(--acid); }
+      .slider i:after { content:''; position:absolute; right:-8px; top:-6px; width:17px; height:17px; border-radius:50%; background:var(--acid); }
+      .tool-icon { font-size:22px; color:var(--paper); }
+      .shoot-row { display:flex; align-items:center; justify-content:space-between; height:82px; }
+      .restart { color:var(--muted); font-size:15px; }
+      .shutter { width:72px; height:72px; border-radius:50%; border:3px solid var(--acid); padding:7px; }
+      .shutter i { display:block; width:100%; height:100%; border-radius:50%; background:var(--acid); position:relative; }
+      .shutter i:after { content:'⌾'; color:var(--ink); position:absolute; font-size:30px; left:19px; top:14px; }
+      .photo-icon { width:47px; height:47px; border-radius:50%; display:grid; place-items:center; background:rgba(215,245,116,.18); color:var(--acid); font-size:22px; }
+      .gallery { position:absolute; left:30px; right:30px; top:130px; bottom:30px; background:#101411; border-radius:22px; padding:28px; }
+      .gallery-head { display:flex; align-items:center; justify-content:space-between; font-size:22px; }
+      .gallery-head strong { font-weight:400; }
+      .import { color:var(--acid); font-size:14px; }
+      .gallery-desc { margin:13px 0 22px; color:var(--muted); font-size:14px; }
+      .chips { display:flex; flex-wrap:wrap; gap:8px; }
+      .chip { padding:9px 12px; border-radius:9px; background:#1a201a; border:1px solid rgba(242,240,231,.1); color:var(--muted); font-size:13px; }
+      .chip.active { color:var(--ink); background:var(--paper); }
+      .gallery-count { margin:20px 0 14px; color:var(--muted); font-size:12px; text-align:right; }
+      .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+      .grid img { width:100%; height:390px; object-fit:cover; border-radius:12px; }
+      .select-callout { position:absolute; left:28px; right:28px; bottom:20px; padding:15px 18px; background:var(--acid); border-radius:12px; color:var(--ink); font-size:15px; text-align:center; }
+      .closing { position:absolute; left:70px; right:70px; bottom:120px; }
+      .closing .headline { font-size:76px; max-width:770px; margin:20px 0 25px; }
+      .closing .subhead { max-width:700px; }
+      .closing .path { margin-top:52px; display:flex; align-items:center; gap:17px; font-size:22px; }
+      .path b { color:var(--acid); font-weight:400; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="12" data-width="1080" data-height="1920">
+      <div class="ambient glow" style="left:-260px;top:-180px" data-start="0" data-duration="12"></div>
+      <div class="ambient glow" style="right:-360px;bottom:-260px;opacity:.55" data-start="0" data-duration="12"></div>
+      <div class="ambient grain" data-start="0" data-duration="12"></div>
+      <section id="hero" class="clip" data-start="0" data-duration="2.3" data-track-index="1"><img class="hero-img" src="./assets/pose-hero.jpg" alt="" /><div class="hero-shade"></div><div class="hero-copy"><div class="eyebrow">FRAME / POSE MODE</div><h1 class="headline">不会摆姿？<br />照着拍就好。</h1><p class="subhead">用一张参考图，让取景把动作、比例和节奏留在镜头里。</p></div></section>
+      <section id="mode" class="clip" data-start="2.15" data-duration="2.2" data-track-index="2"><div class="scene-bg"></div><div class="scene-copy"><div class="eyebrow">01 / 进入</div><h2 class="headline">切到<br />摆姿模式</h2><div class="rule"></div><div class="step-list"><div><span>01</span>选图</div><div><span>02</span>摆姿</div><div><span>03</span>成片</div></div></div><div class="phone"><div class="phone-inner"><div class="phone-top"><span class="mode">构图模式</span><span class="mode active">摆姿模式</span><span class="menu">≡</span><i class="mode-line"></i></div><div class="steps"><b>01</b> 选图 <i class="line"></i> <span>02</span> 摆姿 <i class="line"></i> <span>03</span> 成片</div><div class="preview"><img class="preview-park" src="./assets/park.jpg" alt="" /><div class="preview-label">先选一张参考图</div><div class="level">练习水平仪 · 水平 0.0°</div></div><div class="controls"><div class="tool-row"><span class="tool-icon">＋</span><span style="font-size:15px">选择一张参考图</span></div><div class="shoot-row"><span class="restart">滤镜 · 原图</span><div class="shutter"><i></i></div><span class="photo-icon">▧</span></div></div></div></div></section>
+      <section id="gallery" class="clip" data-start="4.2" data-duration="2.5" data-track-index="3"><div class="scene-bg"></div><div class="scene-copy"><div class="eyebrow">02 / 选图</div><h2 class="headline">选一张<br />参考姿势</h2><div class="rule"></div><p class="subhead" style="font-size:25px;margin-top:24px">内置姿势图库离线可用，也可以导入自己的照片。</p></div><div class="phone"><div class="phone-inner"><div class="phone-top"><span class="mode active">摆姿模式</span><span class="menu">×</span></div><div class="gallery"><div class="gallery-head"><strong>姿势参考</strong><span class="import">导入图片 ↗</span></div><div class="gallery-desc">选一张参考图，叠在取景画面上对照摆姿。</div><div class="chips"><span class="chip active">全部</span><span class="chip">自拍</span><span class="chip">镜自拍</span><span class="chip">健身</span><span class="chip">坐姿</span><span class="chip">站姿</span></div><div class="gallery-count">内置姿势　139 张</div><div class="grid"><img src="./assets/pose-reference.jpg" alt="" /><img src="./assets/pose-hero.jpg" alt="" /></div><div class="select-callout">点选参考图，开始对照</div></div></div></div></section>
+      <section id="overlay" class="clip" data-start="6.55" data-duration="3.35" data-track-index="4"><div class="scene-bg"></div><div class="scene-copy"><div class="eyebrow">03 / 对照</div><h2 class="headline">透明叠加，<br />边看边调整</h2><div class="rule"></div><p class="subhead" style="font-size:25px;margin-top:24px">把透明度调到舒服的位置，动作、角度和画面都能对上。</p></div><div class="phone"><div class="phone-inner"><div class="phone-top"><span class="mode">构图模式</span><span class="mode active">摆姿模式</span><span class="menu">≡</span><i class="mode-line"></i></div><div class="steps"><span>01</span> 选图 <i class="line"></i> <b>02</b> 摆姿 <i class="line"></i> <span>03</span> 成片</div><div class="preview"><img class="preview-park" src="./assets/park.jpg" alt="" /><img class="reference" src="./assets/pose-reference.jpg" alt="" /><div class="preview-guide"></div><div class="level">水平 0.0°</div></div><div class="controls"><div class="tool-row"><img class="thumb" src="./assets/pose-reference.jpg" alt="" /><span class="slider-label">45%</span><div class="slider"><i></i></div><span class="tool-icon">⌘</span></div><div class="shoot-row"><span class="restart">重新开始</span><div class="shutter"><i></i></div><span class="photo-icon">▧</span></div></div></div></div></section>
+      <section id="closing" class="clip" data-start="9.75" data-duration="2.25" data-track-index="5"><div class="scene-bg"></div><div class="closing"><div class="eyebrow">POSE MODE / READY</div><h2 class="headline">摆好姿势，<br />按下快门。</h2><p class="subhead">参考图只用于取景叠加，不会写进成片。<br />在「更多 → 拍照指南」里随时回看。</p><div class="path"><b>选图</b><span>→</span><b>对照</b><span>→</span><b>拍下</b></div></div></section>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const scenes = ['#hero', '#mode', '#gallery', '#overlay', '#closing'];
+      scenes.forEach((selector, i) => {
+        const node = document.querySelector(selector), start = Number(node.dataset.start);
+        gsap.set(node, { autoAlpha: i === 0 ? 1 : 0 });
+        if (i > 0) tl.to(scenes[i - 1], { autoAlpha: 0, duration: .24, ease: 'power2.in' }, start - .12);
+        tl.to(node, { autoAlpha: 1, duration: .42, ease: 'power3.out' }, start);
+        if (selector === '#hero') { tl.fromTo('#hero .hero-img', { scale: 1.07 }, { scale: 1, duration: 2.3, ease: 'power1.out' }, start); tl.fromTo('#hero .hero-copy', { y: 45, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: .8, ease: 'power3.out' }, start + .25); }
+        if (selector === '#mode') { tl.fromTo('#mode .scene-copy', { x: -35, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: .55, ease: 'power3.out' }, start + .1); tl.fromTo('#mode .phone', { x: 40, autoAlpha: 0, rotate: 1.2 }, { x: 0, autoAlpha: 1, rotate: 0, duration: .7, ease: 'back.out(1.2)' }, start + .05); tl.fromTo('#mode .preview-label', { y: -10, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: .3 }, start + .72); }
+        if (selector === '#gallery') { tl.fromTo('#gallery .scene-copy', { x: -35, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: .55, ease: 'power3.out' }, start + .1); tl.fromTo('#gallery .phone', { x: 40, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: .65, ease: 'power3.out' }, start + .05); tl.fromTo('#gallery .grid img', { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: .45, stagger: .1, ease: 'power2.out' }, start + .65); tl.fromTo('#gallery .select-callout', { y: 18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: .35 }, start + 1.4); }
+        if (selector === '#overlay') { tl.fromTo('#overlay .scene-copy', { x: -35, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: .55, ease: 'power3.out' }, start + .1); tl.fromTo('#overlay .phone', { x: 40, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: .65, ease: 'power3.out' }, start + .05); tl.fromTo('#overlay .reference', { autoAlpha: 0 }, { autoAlpha: .45, duration: .7, ease: 'power1.out' }, start + .65); tl.fromTo('#overlay .preview-guide', { scale: .9, autoAlpha: 0 }, { scale: 1, autoAlpha: .8, duration: .5, ease: 'back.out(1.3)' }, start + .82); tl.fromTo('#overlay .slider i', { width: '0%' }, { width: '45%', duration: .55, ease: 'power2.out' }, start + 1.12); }
+        if (selector === '#closing') { tl.fromTo('#closing .closing', { y: 35, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: .7, ease: 'power3.out' }, start + .15); tl.fromTo('#closing .path', { x: -22, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: .5, ease: 'power2.out' }, start + .8); }
+      });
+      tl.seek(0);
+      window.__timelines.main = tl;
+    </script>
+  </body>
+</html>

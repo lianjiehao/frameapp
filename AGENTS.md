@@ -6,11 +6,11 @@ Shared repository instructions for coding agents. Human onboarding: [简体中�
 
 When the user asks **提交代码** (or an equivalent commit request), automatically use [frame-commit](.agents/skills/frame-commit/SKILL.md); no skill name is required. The default scope is **all local uncommitted changes in this repository**: staged, unstaged, added, deleted, renamed and non-ignored untracked files, including earlier tasks' work. Do not ask which files to include or restrict the scope to the latest task unless the user explicitly narrows it. Preview the complete scope, message, checks, destination and outgoing commits, then wait for confirmation before staging, committing or pushing. Respect ignore rules and surface sensitive-file blockers. Editing these rules or finishing ordinary coding work does not itself trigger a submission.
 
-For REA-based feature research or extension, use [frame-rea](.agents/skills/frame-rea/SKILL.md). REA is optional; establish target authorization, keep private research artifacts out of Git, and implement from a sanitized behavioral specification. Never promise complete legal immunity.
-
 ## Scope and workflow
 
 - Inspect the current diff first. Preserve unrelated and uncommitted work.
+- Keep this owner's local changes on the existing `owner-contributors` branch; do not create additional branches.
+- Only incorporate commits authored with `lianjiehao.dev@gmail.com` into `owner-contributors` or `main`, unless the owner explicitly permits specific source branches for the current task. Do not rewrite commit authors to bypass this restriction.
 - Implement the requested behavior with a focused diff. Follow nearby patterns; avoid speculative layers, unrelated rewrites, new state-management packages, or dependency upgrades.
 - Use Flutter 3.47.6 and `flutter pub get --enforce-lockfile`. Deliberate dependency changes must update `pubspec.yaml` and `pubspec.lock` together and explain their purpose.
 - Fix behavior at its owning layer. UI belongs in `lib/main.dart` / `lib/ui/`, orchestration in `lib/services/`, and image/composition logic in `lib/core/`. Keep native I/O behind the existing conditional imports.

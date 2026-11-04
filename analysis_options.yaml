@@ -7,3 +7,4 @@ analyzer:
     - ios/**
     - web/**
     - work/**
+    - artifacts/**

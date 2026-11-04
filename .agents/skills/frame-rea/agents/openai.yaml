@@ -1,4 +1,0 @@
-interface:
-  display_name: "FRAME REA 功能研究"
-  short_description: "Research authorized app behavior and extend FRAME"
-  default_prompt: "Use $frame-rea to research an authorized reference feature and implement an original version in FRAME with evidence and tests."
