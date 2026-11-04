@@ -401,6 +401,7 @@ class AnalysisRequest {
     this.subjectLocked = false,
     this.tracking,
     this.zoom = 1,
+    this.selection,
   });
   final GrayFrame frame;
   final SubjectTemplate? template;
@@ -408,6 +409,8 @@ class AnalysisRequest {
   final bool subjectLocked;
   final SubjectTrackSnapshot? tracking;
   final double zoom;
+  // An explicit tap seeds a new identity instead of advancing the old tracker.
+  final Point2? selection;
 }
 
 SceneFeatures analyzeRequest(AnalysisRequest r, {SubjectTrackUpdate? update}) {
@@ -428,6 +431,30 @@ SceneFeatures analyzeRequest(AnalysisRequest r, {SubjectTrackUpdate? update}) {
 
 enum SubjectState { unselected, tracking, lost, needsDetail }
 
+/// Pixel work for a tap is performed in the analysis worker. Only this result
+/// is applied to the live lock, after its generation and timestamp are checked.
+class SubjectSelection {
+  const SubjectSelection(this.point, this.template, this.tracking);
+  final Point2 point;
+  final SubjectTemplate? template;
+  final SubjectTrackSnapshot? tracking;
+  bool get trackable => tracking != null || template != null;
+
+  factory SubjectSelection.capture(
+    GrayFrame frame,
+    Point2 point, {
+    double zoom = 1,
+  }) {
+    final anchor = Point2(point.x.clamp(0.0, 1.0), point.y.clamp(0.0, 1.0));
+    final tracking = SubjectTrackSnapshot.capture(frame, anchor, zoom: zoom);
+    return SubjectSelection(
+      anchor,
+      tracking?.reference ?? SubjectTemplate.capture(frame, anchor),
+      tracking,
+    );
+  }
+}
+
 /// Selection survives an uncertain frame, without presenting its old position
 /// as a successful live match or letting saliency choose a different subject.
 class SubjectLock {
@@ -440,10 +467,14 @@ class SubjectLock {
   bool get trackable => tracking != null || template != null;
 
   void select(GrayFrame frame, Point2 point, {double zoom = 1}) {
+    acceptSelection(SubjectSelection.capture(frame, point, zoom: zoom));
+  }
+
+  void acceptSelection(SubjectSelection selection) {
     revision++;
-    position = Point2(point.x.clamp(0.0, 1.0), point.y.clamp(0.0, 1.0));
-    template = SubjectTemplate.capture(frame, position!);
-    tracking = SubjectTrackSnapshot.capture(frame, position!, zoom: zoom);
+    position = selection.point;
+    template = selection.template;
+    tracking = selection.tracking;
     state = trackable ? SubjectState.tracking : SubjectState.needsDetail;
   }
 

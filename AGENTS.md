@@ -9,6 +9,8 @@ When the user asks **提交代码** (or an equivalent commit request), automatic
 ## Scope and workflow
 
 - Inspect the current diff first. Preserve unrelated and uncommitted work.
+- Keep this owner's local changes on the existing `owner-contributors` branch; do not create additional branches.
+- Only incorporate commits authored with `lianjiehao.dev@gmail.com` into `owner-contributors` or `main`, unless the owner explicitly permits specific source branches for the current task. Do not rewrite commit authors to bypass this restriction.
 - Implement the requested behavior with a focused diff. Follow nearby patterns; avoid speculative layers, unrelated rewrites, new state-management packages, or dependency upgrades.
 - Use Flutter 3.47.6 and `flutter pub get --enforce-lockfile`. Deliberate dependency changes must update `pubspec.yaml` and `pubspec.lock` together and explain their purpose.
 - Fix behavior at its owning layer. UI belongs in `lib/main.dart` / `lib/ui/`, orchestration in `lib/services/`, and image/composition logic in `lib/core/`. Keep native I/O behind the existing conditional imports.

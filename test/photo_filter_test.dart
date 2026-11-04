@@ -15,6 +15,7 @@ import 'package:framecoach/ui/photo_filters.dart';
 import 'package:framecoach/ui/guides.dart';
 import 'privacy_test.dart' show MemoryStore, TestPermissions;
 import 'widget_test.dart' show loadAppFonts, savePreview;
+import 'coach_test_support.dart';
 import 'tracking_test.dart' show treeView, expected;
 
 Future<List<int>> filteredSwatch(Color color, PhotoFilter filter) async {
@@ -363,7 +364,7 @@ void main() {
       }
 
       await feed();
-      coach.selectSubject(expected(panX: 14, panY: -3));
+      await selectAndWait(coach, expected(panX: 14, panY: -3));
       await coach.confirmScene();
       coach.choosePlan(
         coach.plans.firstWhere((p) => p.kind == CompositionKind.centered),

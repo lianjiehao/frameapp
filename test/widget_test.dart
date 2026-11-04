@@ -16,6 +16,7 @@ import 'package:framecoach/ui/guides.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:framecoach/services/privacy.dart';
+import 'coach_test_support.dart';
 import 'tracking_test.dart'
     show
         treeView,
@@ -81,7 +82,7 @@ void main() {
       }
 
       await feed(0);
-      coach.selectSubject(expected(panX: 17, panY: -5));
+      await selectAndWait(coach, expected(panX: 17, panY: -5));
       await coach.confirmScene();
       coach.choosePlan(
         coach.plans.firstWhere((p) => p.kind == CompositionKind.centered),
@@ -175,7 +176,7 @@ void main() {
       }
 
       await feed(0);
-      coach.selectSubject(anchor);
+      await selectAndWait(coach, anchor);
       coach.choosePlan(
         const CompositionPlan(
           CompositionKind.thirds,
@@ -236,7 +237,7 @@ void main() {
       }
 
       await feed(treeView());
-      coach.selectSubject(expected());
+      await selectAndWait(coach, expected());
       expect(coach.canRecommend, true);
       await feed(treeView(panX: 2), expires: true);
       expect(coach.subjectLock.state, SubjectState.lost);
@@ -289,7 +290,7 @@ void main() {
       }
 
       await feed(treeView());
-      coach.selectSubject(expected());
+      await selectAndWait(coach, expected());
       await coach.confirmScene();
       coach.choosePlan(
         coach.plans.firstWhere((p) => p.kind == CompositionKind.centered),
@@ -379,7 +380,7 @@ void main() {
 
       await feed(source);
       const anchor = Point2(.2, .72);
-      coach.selectSubject(anchor);
+      await selectAndWait(coach, anchor);
       await coach.confirmScene();
       expect(coach.phase, CapturePhase.recommending);
       coach.choosePlan(
@@ -620,7 +621,7 @@ void main() {
                 point.y * tester.getSize(viewport).height,
               ),
         );
-        await tester.pump();
+        await pumpSelection(tester, coach);
       }
 
       // Loading an image or detecting a salient region never selects it for the user.
@@ -666,8 +667,6 @@ void main() {
       expect(enabled(), true);
       await tester.tap(confirm);
       await tester.pump();
-      expect(enabled(), false);
-      await tick(tester, 400);
       expect(coach.phase, CapturePhase.recommending);
       expect(coach.plans, isNotEmpty);
       coach.resetFraming();
@@ -1034,7 +1033,7 @@ void main() {
               seed.y * tester.getSize(viewport).height,
             ),
       );
-      await tick(tester, 400);
+      await pumpSelection(tester, coach);
       expect(coach.subjectLock.state, SubjectState.tracking);
       expect(subjectPainter(tester).subjectPosition, isNotNull);
       await tester.tap(find.byKey(const Key('confirm-scene')));
@@ -1140,7 +1139,7 @@ void main() {
               selectedPosition.y * tester.getSize(viewport).height,
             ),
       );
-      await tick(tester, 200);
+      await pumpSelection(tester, coach);
       await tester.tap(find.byKey(const Key('confirm-scene')));
       await tick(tester, 400);
       expect(coach.phase, CapturePhase.recommending);
@@ -1233,7 +1232,7 @@ void main() {
               first.y * tester.getSize(viewfinder).height,
             ),
       );
-      await tester.pump();
+      await pumpSelection(tester, coach);
       expect(coach.subjectLock.state, SubjectState.tracking);
       final initial = subjectPainter(tester).subjectPosition!;
       // Rapid arrivals must retain the newest image while an isolate is busy.

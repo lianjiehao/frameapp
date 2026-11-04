@@ -10,7 +10,6 @@ A camera guide for learning and research. Composition is the default: select a s
 
 | Platform | Download |
 | --- | --- |
-
 | Android | [Download APK](https://www.pgyer.com/qujing-android) |
 | iOS | Installation or TestFlight link to be added |
 
